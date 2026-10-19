@@ -13,7 +13,7 @@ export const runtime = 'nodejs'
  */
 export async function GET(request: Request) {
   const encoder = new TextEncoder()
-  const snapshot = buildSnapshot()
+  const snapshot = await buildSnapshot()
 
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {

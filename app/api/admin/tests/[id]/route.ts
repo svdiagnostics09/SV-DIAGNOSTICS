@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  if (!getSessionFromRequest(request)) return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+  if (!await getSessionFromRequest(request)) return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
 
   const { id } = await params
   const body = await request.json().catch(() => null)
@@ -18,7 +18,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: 'Enter a valid price in rupees.' }, { status: 400 })
   }
 
-  const test = updateTest(Number(id), {
+  const test = await updateTest(Number(id), {
     ...(body.name !== undefined ? { name: String(body.name).trim() } : {}),
     ...(body.category !== undefined ? { category: String(body.category) } : {}),
     ...(body.description !== undefined ? { description: String(body.description) } : {}),
@@ -31,16 +31,16 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   })
 
   if (!test) return NextResponse.json({ error: 'Test not found' }, { status: 404 })
-  addActivity('system', `Test updated: ${test.name} → ₹${test.finalPrice}`)
+  await addActivity('system', `Test updated: ${test.name} → ₹${test.finalPrice}`)
   publish('tests')
   publish('activity')
   return NextResponse.json(test)
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  if (!getSessionFromRequest(request)) return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+  if (!await getSessionFromRequest(request)) return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
   const { id } = await params
-  const ok = deleteTest(Number(id))
+  const ok = await deleteTest(Number(id))
   if (!ok) return NextResponse.json({ error: 'Test not found' }, { status: 404 })
   publish('tests')
   return NextResponse.json({ ok: true })

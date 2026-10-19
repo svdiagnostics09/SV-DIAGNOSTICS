@@ -6,7 +6,7 @@ export const runtime = 'nodejs'
 /** Public order lookup — never returns the PDF, only its availability. */
 export async function GET(_request: Request, { params }: { params: Promise<{ orderId: string }> }) {
   const { orderId } = await params
-  const order = getOrder(orderId)
+  const order = await getOrder(orderId)
   if (!order) return Response.json({ error: 'No order found for that ID.' }, { status: 404 })
 
   return Response.json({

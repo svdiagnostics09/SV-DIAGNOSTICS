@@ -25,15 +25,15 @@ function sign(value: string) {
   return createHmac('sha256', secret()).update(value).digest('base64url')
 }
 
-export function verifyCredentials(id: string, password: string): AdminUser | null {
+export async function verifyCredentials(id: string, password: string): Promise<AdminUser | null> {
   if (!id.trim() || !password) return null
-  const user = verifyAdmin(id, password)
+  const user = await verifyAdmin(id, password)
   return user ? { id: user.id, name: user.name, role: 'Operations lead' } : null
 }
 
 /** Sessions minted before a password change stop working. */
-function credentialFingerprint() {
-  return sign(getSetting('admin_password_hash') || 'unset').slice(0, 12)
+async function credentialFingerprint() {
+  return sign((await getSetting('admin_password_hash')) || 'unset').slice(0, 12)
 }
 
 export interface Session {
@@ -42,13 +42,13 @@ export interface Session {
   fp: string
 }
 
-export function createSessionToken(user: AdminUser) {
+export async function createSessionToken(user: AdminUser) {
   const expiresAt = Date.now() + SESSION_TTL_SECONDS * 1000
-  const payload = Buffer.from(JSON.stringify({ user, expiresAt, fp: credentialFingerprint() })).toString('base64url')
+  const payload = Buffer.from(JSON.stringify({ user, expiresAt, fp: await credentialFingerprint() })).toString('base64url')
   return `${payload}.${sign(payload)}`
 }
 
-export function readSessionToken(token: string | undefined | null): Session | null {
+export async function readSessionToken(token: string | undefined | null): Promise<Session | null> {
   if (!token) return null
   const [payload, signature] = token.split('.')
   if (!payload || !signature) return null
@@ -61,7 +61,7 @@ export function readSessionToken(token: string | undefined | null): Session | nu
     const session = JSON.parse(Buffer.from(payload, 'base64url').toString()) as Session
     if (!session.expiresAt || session.expiresAt < Date.now()) return null
     // Changing the password (or ID) invalidates every existing session.
-    if (session.fp !== credentialFingerprint()) return null
+    if (session.fp !== await credentialFingerprint()) return null
     return session
   } catch {
     return null
@@ -76,7 +76,7 @@ export const sessionCookieOptions = {
   maxAge: SESSION_TTL_SECONDS,
 }
 
-export function getSessionFromRequest(request: Request): Session | null {
+export async function getSessionFromRequest(request: Request): Promise<Session | null> {
   const cookieHeader = request.headers.get('cookie') ?? ''
   const match = cookieHeader.split(/;\s*/).find((part) => part.startsWith(`${SESSION_COOKIE}=`))
   if (!match) return null

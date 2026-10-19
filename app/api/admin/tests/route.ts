@@ -7,12 +7,12 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function GET(request: Request) {
-  const includeInactive = new URL(request.url).searchParams.get('all') === '1' && Boolean(getSessionFromRequest(request))
-  return NextResponse.json(listTests(includeInactive))
+  const includeInactive = new URL(request.url).searchParams.get('all') === '1' && Boolean(await getSessionFromRequest(request))
+  return NextResponse.json(await listTests(includeInactive))
 }
 
 export async function POST(request: Request) {
-  if (!getSessionFromRequest(request)) return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+  if (!await getSessionFromRequest(request)) return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
 
   const body = await request.json().catch(() => null)
   const name = String(body?.name ?? '').trim()
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   if (discountType === 'percent' && discountValue > 100) return NextResponse.json({ error: 'Percentage discount cannot exceed 100.' }, { status: 400 })
   if (discountType === 'amount' && discountValue >= price) return NextResponse.json({ error: 'Discount must be less than the price.' }, { status: 400 })
 
-  const test = createTest({
+  const test = await createTest({
     name,
     category,
     description: String(body?.description ?? ''),
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     prep: String(body?.prep ?? 'No fasting'),
   })
 
-  addActivity('system', `Test added: ${test.name} (₹${test.finalPrice})`)
+  await addActivity('system', `Test added: ${test.name} (₹${test.finalPrice})`)
   publish('tests')
   publish('activity')
   return NextResponse.json(test, { status: 201 })

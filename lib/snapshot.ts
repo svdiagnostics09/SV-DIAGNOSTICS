@@ -4,9 +4,11 @@ import { getPendingWork, getSetting, getStats, getTopTests, listActivity, listMe
  * The one payload the UI renders. Every field is read from SQLite at the
  * moment of the request, so nothing here is invented client-side.
  */
-export function buildSnapshot() {
-  const settings = publicSettings()
-  const tests = listTests().map((test) => ({
+export async function buildSnapshot() {
+  const [settings, testsResult, ordersResult, patients, pending, topTests, recentEvents, activity, messages, notifications, unreadNotifications, adminWhatsapp, phoneNumberId, whatsappAccessToken, stats, logo] = await Promise.all([
+    publicSettings(), listTests(), listOrders(), listPatients(), getPendingWork(), getTopTests(), listRecentEvents(60), listActivity(), listMessages(), listNotifications(40), unreadNotificationCount(), getSetting('admin_whatsapp'), getSetting('whatsapp_phone_number_id'), getSetting('whatsapp_access_token'), getStats(), getSetting('logo_data_url'),
+  ])
+  const tests = testsResult.map((test) => ({
     id: test.id,
     name: test.name,
     category: test.category,
@@ -24,7 +26,7 @@ export function buildSnapshot() {
   return {
     ...settings,
     tests,
-    orders: listOrders().map((order) => ({
+    orders: ordersResult.map((order) => ({
       id: order.id,
       orderId: order.order_id,
       patientName: order.patient_name,
@@ -48,20 +50,13 @@ export function buildSnapshot() {
       cancelledAt: order.cancelled_at,
       createdAt: order.created_at,
     })),
-    patients: listPatients(),
-    pending: getPendingWork(),
-    topTests: getTopTests(),
-    recentEvents: listRecentEvents(60),
-    activity: listActivity(),
-    messages: listMessages(),
-    notifications: listNotifications(40),
-    unreadNotifications: unreadNotificationCount(),
-    notifyWhatsAppEnabled: Boolean(getSetting('admin_whatsapp')),
-    whatsappAutoSend: Boolean(getSetting('whatsapp_phone_number_id') && getSetting('whatsapp_access_token')),
-    stats: getStats(),
+    patients, pending, topTests, recentEvents, activity, messages, notifications, unreadNotifications,
+    notifyWhatsAppEnabled: Boolean(adminWhatsapp),
+    whatsappAutoSend: Boolean(phoneNumberId && whatsappAccessToken),
+    stats,
     updatedAt: Date.now(),
-    brandCustomised: Boolean(getSetting('logo_data_url')),
+    brandCustomised: Boolean(logo),
   }
 }
 
-export type Snapshot = ReturnType<typeof buildSnapshot>
+export type Snapshot = Awaited<ReturnType<typeof buildSnapshot>>

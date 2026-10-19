@@ -24,27 +24,25 @@ export interface DeliveryResult {
 const digits = (value: string) => value.replace(/\D/g, '')
 
 /** Admin numbers may be stored as 9876543210, +91 98765 43210, or a comma list. */
-export function adminRecipients(): string[] {
-  return (getSetting('admin_whatsapp') || '')
+export async function adminRecipients(): Promise<string[]> {
+  return ((await getSetting('admin_whatsapp')) || '')
     .split(',')
     .map((value) => digits(value))
     .filter(Boolean)
     .map((value) => (value.length === 10 ? `91${value}` : value))
 }
 
-export function isCloudApiConfigured() {
-  return Boolean(getSetting('whatsapp_phone_number_id') && getSetting('whatsapp_access_token'))
+export async function isCloudApiConfigured() {
+  return Boolean(await getSetting('whatsapp_phone_number_id') && await getSetting('whatsapp_access_token'))
 }
 
-const manualLink = (message: string) => {
-  const [first] = adminRecipients()
+const manualLink = async (message: string) => {
+  const [first] = await adminRecipients()
   return first ? `https://wa.me/${first}?text=${encodeURIComponent(message)}` : undefined
 }
 
 async function sendViaCloudApi(to: string, message: string): Promise<DeliveryResult> {
-  const phoneNumberId = getSetting('whatsapp_phone_number_id')
-  const token = getSetting('whatsapp_access_token')
-  const version = getSetting('whatsapp_api_version', 'v21.0')
+  const [phoneNumberId, token, version] = await Promise.all([getSetting('whatsapp_phone_number_id'), getSetting('whatsapp_access_token'), getSetting('whatsapp_api_version', 'v21.0')])
 
   try {
     const response = await fetch(`https://graph.facebook.com/${version}/${phoneNumberId}/messages`, {
@@ -86,17 +84,17 @@ async function sendViaCloudApi(to: string, message: string): Promise<DeliveryRes
  * Returns a summary plus the manual link so the UI can always offer a fallback.
  */
 export async function notifyAdminsWhatsApp(message: string): Promise<DeliveryResult> {
-  const recipients = adminRecipients()
+  const recipients = await adminRecipients()
   if (recipients.length === 0) {
     return { ok: false, mode: 'not-configured', detail: 'No admin WhatsApp number saved in Settings → Notifications.' }
   }
 
-  if (!isCloudApiConfigured()) {
+  if (!await isCloudApiConfigured()) {
     return {
       ok: false,
       mode: 'manual-link',
       detail: 'Automatic sending is off — open the prepared message and press send.',
-      link: manualLink(message),
+      link: await manualLink(message),
     }
   }
 
@@ -106,6 +104,6 @@ export async function notifyAdminsWhatsApp(message: string): Promise<DeliveryRes
     ok: delivered > 0,
     mode: 'cloud-api',
     detail: delivered === results.length ? `Delivered to ${delivered} number${delivered === 1 ? '' : 's'}` : `${delivered}/${results.length} delivered — ${results.find((result) => !result.ok)?.detail ?? 'unknown error'}`,
-    link: delivered === results.length ? undefined : manualLink(message),
+    link: delivered === results.length ? undefined : await manualLink(message),
   }
 }

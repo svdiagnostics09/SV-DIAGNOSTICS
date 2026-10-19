@@ -7,13 +7,13 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function GET() {
-  ensureDefaultAdmin()
-  const session = readSessionToken((await cookies()).get(SESSION_COOKIE)?.value)
+  await ensureDefaultAdmin()
+  const session = await readSessionToken((await cookies()).get(SESSION_COOKIE)?.value)
   return NextResponse.json({
     authenticated: Boolean(session),
     user: session?.user ?? null,
     // Only unconfigured deployments advertise the default password.
-    demo: isAdminConfigured() && !process.env.ADMIN_PASSWORD,
+    demo: await isAdminConfigured() && !process.env.ADMIN_PASSWORD,
   })
 }
 

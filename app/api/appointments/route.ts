@@ -22,7 +22,7 @@ export async function POST(request: Request) {
   const name = cleanPatientName(String(body.name ?? ''))
   const phone = normalizePhone(String(body.phone ?? ''))
   const testId = Number(body.testId)
-  const test = Number.isInteger(testId) ? getTest(testId) : null
+  const test = Number.isInteger(testId) ? await getTest(testId) : null
   const type = body.type === 'Lab visit' ? 'Lab visit' : 'Home collection'
   const slot = String(body.slot ?? '').trim()
   const pincode = String(body.pincode ?? '').replace(/\D/g, '').slice(0, 6)
@@ -35,8 +35,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Enter a valid 6-digit pincode for home collection.' }, { status: 400 })
   }
 
-  const collectionFee = type === 'Home collection' ? Number(getSetting('collection_fee', '99')) || 0 : 0
-  const order = createOrder({
+  const collectionFee = type === 'Home collection' ? Number(await getSetting('collection_fee', '99')) || 0 : 0
+  const order = await createOrder({
     patientName: name,
     phone,
     pincode,
@@ -47,14 +47,14 @@ export async function POST(request: Request) {
     amount: test.finalPrice + collectionFee,
   })
 
-  addActivity('booking', `${name} booked ${test.name} · ${type}`)
+  await addActivity('booking', `${name} booked ${test.name} · ${type}`)
 
   // ---- Staff alerts -------------------------------------------------
   // In-app notification is immediate; WhatsApp is best-effort. A provider
   // outage must never fail a patient's booking, so failures are recorded
   // rather than thrown.
   let delivery: Awaited<ReturnType<typeof notifyAdminsWhatsApp>> | null = null
-  if (getSetting('notify_on_booking', '1') === '1') {
+  if (await getSetting('notify_on_booking', '1') === '1') {
     const message = [
       '🧪 New booking — SV Diagnostics',
       '',
@@ -75,7 +75,7 @@ export async function POST(request: Request) {
       delivery = { ok: false, mode: 'manual-link', detail: (error as Error).message }
     }
 
-    createNotification({
+    await createNotification({
       kind: 'booking',
       title: `New booking · ${name}`,
       body: `${test.name} · ${type} · ${slot} · ₹${(test.finalPrice + collectionFee).toLocaleString('en-IN')}`,
@@ -84,7 +84,7 @@ export async function POST(request: Request) {
       channel: delivery ? `whatsapp:${delivery.mode}` : '',
       delivery: delivery ? { whatsapp: { ok: delivery.ok, detail: delivery.detail, link: delivery.link } } : {},
     })
-    pruneNotifications()
+    await pruneNotifications()
   }
 
   publish('orders')

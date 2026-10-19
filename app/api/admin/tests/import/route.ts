@@ -13,12 +13,12 @@ export const runtime = 'nodejs'
  * tests are matched by name, prices are refreshed, admin discounts are kept.
  */
 export async function POST(request: Request) {
-  if (!getSessionFromRequest(request)) return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+  if (!await getSessionFromRequest(request)) return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
 
-  const result = importPriceList(priceList)
-  addActivity('system', `Price list synced to catalogue — ${result.inserted} added, ${result.updated} updated`)
+  const result = await importPriceList(priceList)
+  await addActivity('system', `Price list synced to catalogue — ${result.inserted} added, ${result.updated} updated`)
   publish('tests')
   publish('activity')
 
-  return NextResponse.json({ ...result, catalogueSize: listTests().length })
+  return NextResponse.json({ ...result, catalogueSize: (await listTests()).length })
 }

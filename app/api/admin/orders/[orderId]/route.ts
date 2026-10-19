@@ -8,12 +8,12 @@ export const runtime = 'nodejs'
 
 /** Full detail for one order: fields + timeline. Admin only. */
 export async function GET(request: Request, { params }: { params: Promise<{ orderId: string }> }) {
-  if (!getSessionFromRequest(request)) return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+  if (!await getSessionFromRequest(request)) return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
   const { orderId } = await params
-  const order = getOrder(orderId)
+  const order = await getOrder(orderId)
   if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
   const { report_pdf, ...rest } = order as typeof order & { report_pdf?: Buffer }
-  return NextResponse.json({ order: rest, events: listOrderEvents(order.order_id) })
+  return NextResponse.json({ order: rest, events: await listOrderEvents(order.order_id) })
 }
 
 /**
@@ -21,10 +21,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
  * WhatsApp hand-off is refused until a report has actually been uploaded.
  */
 export async function PATCH(request: Request, { params }: { params: Promise<{ orderId: string }> }) {
-  if (!getSessionFromRequest(request)) return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+  if (!await getSessionFromRequest(request)) return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
 
   const { orderId } = await params
-  const order = getOrder(orderId)
+  const order = await getOrder(orderId)
   if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
 
   const body = await request.json().catch(() => ({}))
@@ -35,8 +35,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ or
     if (order.report_ready_at === null) {
       return NextResponse.json({ error: 'Upload the report PDF before sending it to the patient.' }, { status: 409 })
     }
-    markWhatsappSent(order.order_id)
-    addActivity('report', `Report sent on WhatsApp to ${order.patient_name}`)
+    await markWhatsappSent(order.order_id)
+    await addActivity('report', `Report sent on WhatsApp to ${order.patient_name}`)
     publish('orders')
     publish('activity')
     return NextResponse.json({ ok: true })
@@ -44,21 +44,21 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ or
 
   if (action === 'note') {
     const note = String(body.note ?? '').slice(0, 1000)
-    setStaffNote(order.order_id, note)
+    await setStaffNote(order.order_id, note)
     publish('orders')
     return NextResponse.json({ ok: true })
   }
 
   if (action === 'payment') {
     const status = ['Paid', 'Pending', 'Refunded'].includes(body.status) ? body.status : 'Pending'
-    setPayment(order.order_id, status, String(body.method ?? '').slice(0, 40))
+    await setPayment(order.order_id, status, String(body.method ?? '').slice(0, 40))
     publish('orders')
     return NextResponse.json({ ok: true })
   }
 
   if (action === 'cancel') {
-    cancelOrder(order.order_id, String(body.reason ?? '').slice(0, 200))
-    addActivity('status', `${order.patient_name}'s order was cancelled`)
+    await cancelOrder(order.order_id, String(body.reason ?? '').slice(0, 200))
+    await addActivity('status', `${order.patient_name}'s order was cancelled`)
     publish('orders')
     publish('activity')
     return NextResponse.json({ ok: true })
@@ -71,7 +71,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ or
     if (body.status === 'Report ready' && order.report_ready_at === null) {
       return NextResponse.json({ error: 'Upload the report PDF to mark this order ready.' }, { status: 409 })
     }
-    setOrderStatus(order.order_id, body.status)
+    await setOrderStatus(order.order_id, body.status)
     publish('orders')
     return NextResponse.json({ ok: true })
   }

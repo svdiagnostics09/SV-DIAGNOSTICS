@@ -9,12 +9,12 @@ export const runtime = 'nodejs'
  */
 export async function GET(request: Request, { params }: { params: Promise<{ orderId: string }> }) {
   const { orderId } = await params
-  const order = getOrder(orderId)
+  const order = await getOrder(orderId)
   if (!order) {
     return Response.json({ error: 'No order found for that ID.' }, { status: 404 })
   }
 
-  const report = getReportPdf(order.order_id)
+  const report = await getReportPdf(order.order_id)
   if (!report) {
     return Response.json({
       error: 'Your report is not ready yet.',

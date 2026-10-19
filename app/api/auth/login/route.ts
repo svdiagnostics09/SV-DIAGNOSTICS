@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Too many failed attempts. Try again in a few minutes.' }, { status: 429 })
   }
 
-  const user = verifyCredentials(id, password)
+  const user = await verifyCredentials(id, password)
   if (!user) {
     const next = !entry || Date.now() - entry.firstAt > WINDOW_MS ? { count: 1, firstAt: Date.now() } : { ...entry, count: entry.count + 1 }
     attempts.set(key, next)
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
 
   attempts.delete(key)
   const response = NextResponse.json({ user })
-  ;(await cookies()).set(SESSION_COOKIE, createSessionToken(user), sessionCookieOptions)
-  addActivity('system', `${user.name} signed in`)
+  ;(await cookies()).set(SESSION_COOKIE, await createSessionToken(user), sessionCookieOptions)
+  await addActivity('system', `${user.name} signed in`)
   return response
 }
