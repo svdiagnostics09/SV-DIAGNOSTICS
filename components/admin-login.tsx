@@ -134,7 +134,7 @@ export function AdminLogin({ auth, onBack }: { auth: AdminAuthApi; onBack: () =>
               <div className="mt-6 rounded-xl border border-[#f5b544]/20 bg-[#f5b544]/[0.08] p-3.5 text-xs leading-5 text-[#f7d08a]">
                 <b className="block text-[#ffd899]">Local demo credentials</b>
                 ID <code className="rounded bg-black/30 px-1.5 py-0.5 font-mono">admin</code> · Password{' '}
-                <code className="rounded bg-black/30 px-1.5 py-0.5 font-mono">sv-admin-2026</code>
+                <code className="rounded bg-black/30 px-1.5 py-0.5 font-mono">admin@1234</code>
                 <span className="mt-1 block text-[11px] text-[#f7d08a]/70">Set ADMIN_ID and ADMIN_PASSWORD to replace these.</span>
               </div>
             )}
