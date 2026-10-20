@@ -141,3 +141,4 @@ lib/                 db, auth, validation, catalogue, network, booking, payments
 db/                  schema.ts (Drizzle), migrations, migrate runner
 scripts/             test-api.mjs, create-admin.mjs, data/seed-catalogue.mjs (optional)
 ```
+# SV-DIAGNOSTICS
