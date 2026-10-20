@@ -142,3 +142,4 @@ db/                  schema.ts (Drizzle), migrations, migrate runner
 scripts/             test-api.mjs, create-admin.mjs, data/seed-catalogue.mjs (optional)
 ```
 # SV-DIAGNOSTICS
+# SV-DIAGNOSTICS
