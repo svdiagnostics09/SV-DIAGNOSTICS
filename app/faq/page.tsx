@@ -7,7 +7,7 @@ import { PageHeader, EmptyState } from '@/components/ui'
 import { HelpCircle } from 'lucide-react'
 
 export const metadata: Metadata = { title: 'FAQ', description: 'Frequently asked questions about booking tests, home collection, reports and payments at SV Diagnostics.' }
-export const revalidate = 60
+export const dynamic = 'force-dynamic'
 
 export default async function FaqPage() {
   const [{ settings }, faqs] = await Promise.all([siteShell(), listFaqs()])

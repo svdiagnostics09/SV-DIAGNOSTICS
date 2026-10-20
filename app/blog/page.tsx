@@ -8,7 +8,7 @@ import { SiteShell } from '@/components/site/site-shell'
 import { PageHeader, EmptyState } from '@/components/ui'
 
 export const metadata: Metadata = { title: 'Health Articles', description: 'Articles published by SV Diagnostics.' }
-export const revalidate = 300
+export const dynamic = 'force-dynamic'
 
 export default async function BlogPage() {
   const [{ settings }, posts] = await Promise.all([siteShell(), listBlogPosts()])

@@ -5,6 +5,7 @@ import { SiteShell } from '@/components/site/site-shell'
 import { PageHeader } from '@/components/ui'
 
 export const metadata: Metadata = { title: 'Patient Consent', description: 'Patient consent and information for diagnostic testing at SV Diagnostics.' }
+export const dynamic = 'force-dynamic'
 
 const SECTIONS = [
   { title: 'Consent to testing', body: 'By booking, you confirm that you are the patient or an authorised representative of the patient, that the details supplied are accurate, and that you consent to sample collection and testing for the named patient.' },

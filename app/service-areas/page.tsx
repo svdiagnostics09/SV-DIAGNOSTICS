@@ -7,7 +7,7 @@ import { SiteShell } from '@/components/site/site-shell'
 import { PageHeader, EmptyState } from '@/components/ui'
 
 export const metadata: Metadata = { title: 'Service Areas', description: 'Home sample collection service areas served by SV Diagnostics in Hyderabad.' }
-export const revalidate = 60
+export const dynamic = 'force-dynamic'
 
 export default async function ServiceAreasPage() {
   const [{ settings, areas, locations }] = await Promise.all([siteShell()])
