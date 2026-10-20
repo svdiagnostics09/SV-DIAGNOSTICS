@@ -30,7 +30,7 @@ import { HomeSearch } from '@/components/site/home-search'
 import { AreaCheck } from '@/components/site/area-check'
 import { SectionHeading, IconTile } from '@/components/ui'
 
-export const revalidate = 60
+export const dynamic = 'force-dynamic'
 
 const CATEGORY_ICONS: Record<string, typeof Home> = {
   pathology: Microscope,

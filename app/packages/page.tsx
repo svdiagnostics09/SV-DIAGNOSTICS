@@ -8,7 +8,7 @@ import { SiteShell } from '@/components/site/site-shell'
 import { PageHeader, EmptyState } from '@/components/ui'
 
 export const metadata: Metadata = { title: 'Health Packages', description: 'Health check-up packages at SV Diagnostics, Hyderabad, with included tests and package pricing.' }
-export const revalidate = 60
+export const dynamic = 'force-dynamic'
 
 export default async function PackagesPage() {
   const [{ settings }, packages] = await Promise.all([siteShell(), listPackages()])

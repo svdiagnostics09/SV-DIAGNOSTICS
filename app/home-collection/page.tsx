@@ -8,7 +8,7 @@ import { PageHeader, IconTile } from '@/components/ui'
 import { formatINR } from '@/lib/db'
 
 export const metadata: Metadata = { title: 'Home Sample Collection', description: 'Book home sample collection with SV Diagnostics in serviced areas of Hyderabad.' }
-export const revalidate = 60
+export const dynamic = 'force-dynamic'
 
 export default async function HomeCollectionPage() {
   const [{ settings, areas }, locations] = await Promise.all([siteShell(), listLocations()])

@@ -10,7 +10,7 @@ import { AddToBooking } from '@/components/site/add-to-booking'
 import { Breadcrumbs, Badge } from '@/components/ui'
 import { sampleLabel, turnaroundLabel } from '@/lib/labels'
 
-export const revalidate = 60
+export const dynamic = 'force-dynamic'
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params

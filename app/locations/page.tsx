@@ -6,7 +6,7 @@ import { SiteShell } from '@/components/site/site-shell'
 import { PageHeader, EmptyState, Badge } from '@/components/ui'
 
 export const metadata: Metadata = { title: 'Locations', description: 'SV Diagnostics laboratory branches in Hyderabad with addresses, phone numbers and opening hours.' }
-export const revalidate = 60
+export const dynamic = 'force-dynamic'
 
 export default async function LocationsPage() {
   const { settings, locations } = await siteShell()

@@ -6,7 +6,7 @@ import { PriceList } from '@/components/site/price-list'
 import { PageHeader } from '@/components/ui'
 
 export const metadata: Metadata = { title: 'Price List', description: 'Searchable diagnostic test price list for SV Diagnostics, Hyderabad.' }
-export const revalidate = 60
+export const dynamic = 'force-dynamic'
 
 export default async function PriceListPage() {
   const [{ settings }, categories, tests] = await Promise.all([siteShell(), listCategories(), listAllPublishedTests()])

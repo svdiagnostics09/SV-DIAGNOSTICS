@@ -7,7 +7,7 @@ import { ContactForm } from '@/components/site/contact-form'
 import { PageHeader } from '@/components/ui'
 
 export const metadata: Metadata = { title: 'Contact', description: 'Contact SV Diagnostics in Hyderabad for appointments, test availability and report queries.' }
-export const revalidate = 60
+export const dynamic = 'force-dynamic'
 
 export default async function ContactPage() {
   const [{ settings }, locations] = await Promise.all([siteShell(), listLocations()])
