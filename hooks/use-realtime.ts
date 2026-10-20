@@ -123,9 +123,13 @@ export function useAdminAuth(): AdminAuthApi {
   const refresh = useCallback(async () => {
     try {
       const response = await fetch('/api/auth/session', { cache: 'no-store' })
-      const data = await response.json()
+      // A failed request (e.g. the database is not configured yet) returns an
+      // empty body, so never assume JSON — treat it as signed out.
+      const data = await response.json().catch(() => ({}))
       setUser(data.authenticated ? data.user : null)
       setDemoMode(Boolean(data.demo))
+    } catch {
+      setUser(null)
     } finally {
       setChecking(false)
     }
