@@ -1,109 +1,81 @@
-import { getSetting } from '@/lib/store'
+import { sql } from '@/lib/db'
+import { formatINR } from '@/lib/db'
+import { STATUS_LABELS, type BookingStatus } from '@/lib/booking'
 
 /**
- * Staff WhatsApp delivery.
+ * Transactional notifications.
  *
- * Two modes, chosen at runtime:
- *
- *  1. **Cloud API** — when `whatsapp_phone_number_id` and `whatsapp_access_token`
- *     are set, the message is delivered automatically to the admin's number.
- *  2. **Manual link** — otherwise we build a `wa.me` link the console offers as
- *     a one-click action. Nothing is claimed as sent that wasn't sent.
- *
- * Every result states which mode was used and whether delivery actually
- * succeeded, so the admin dashboard never shows a false "sent" tick.
+ * Email uses the Resend HTTP API when RESEND_API_KEY + EMAIL_FROM are set.
+ * Without them, every attempted message is recorded as `skipped` with a clear
+ * reason — nothing is ever reported as "sent" unless the provider accepted it.
  */
 
-export interface DeliveryResult {
-  ok: boolean
-  mode: 'cloud-api' | 'manual-link' | 'not-configured'
+const configured = () => Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM)
+
+export interface DeliveryOutcome {
+  status: 'sent' | 'failed' | 'skipped'
   detail: string
-  link?: string
 }
 
-const digits = (value: string) => value.replace(/\D/g, '')
-
-/** Admin numbers may be stored as 9876543210, +91 98765 43210, or a comma list. */
-export async function adminRecipients(): Promise<string[]> {
-  return ((await getSetting('admin_whatsapp')) || '')
-    .split(',')
-    .map((value) => digits(value))
-    .filter(Boolean)
-    .map((value) => (value.length === 10 ? `91${value}` : value))
-}
-
-export async function isCloudApiConfigured() {
-  return Boolean(await getSetting('whatsapp_phone_number_id') && await getSetting('whatsapp_access_token'))
-}
-
-const manualLink = async (message: string) => {
-  const [first] = await adminRecipients()
-  return first ? `https://wa.me/${first}?text=${encodeURIComponent(message)}` : undefined
-}
-
-async function sendViaCloudApi(to: string, message: string): Promise<DeliveryResult> {
-  const [phoneNumberId, token, version] = await Promise.all([getSetting('whatsapp_phone_number_id'), getSetting('whatsapp_access_token'), getSetting('whatsapp_api_version', 'v21.0')])
-
-  try {
-    const response = await fetch(`https://graph.facebook.com/${version}/${phoneNumberId}/messages`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        to,
-        type: 'text',
-        text: { preview_url: false, body: message },
-      }),
-      // Don't let a slow provider stall the booking request.
-      signal: AbortSignal.timeout(8000),
-    })
-
-    const payload = await response.json().catch(() => ({}))
-    if (!response.ok) {
-      return {
-        ok: false,
-        mode: 'cloud-api',
-        detail: payload?.error?.message ?? `WhatsApp API returned ${response.status}`,
+async function deliver(channel: 'email' | 'sms' | 'whatsapp', recipient: string, template: string, bookingId: string | null, subject: string, text: string): Promise<DeliveryOutcome> {
+  let outcome: DeliveryOutcome
+  if (channel === 'email') {
+    if (!recipient) outcome = { status: 'skipped', detail: 'No email address on the booking.' }
+    else if (!configured()) outcome = { status: 'skipped', detail: 'Email provider not configured (RESEND_API_KEY / EMAIL_FROM).' }
+    else {
+      try {
+        const response = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from: process.env.EMAIL_FROM, to: [recipient], subject, text }),
+        })
+        outcome = response.ok
+          ? { status: 'sent', detail: `Resend accepted (${response.status}).` }
+          : { status: 'failed', detail: `Resend responded ${response.status}: ${(await response.text()).slice(0, 300)}` }
+      } catch (error) {
+        outcome = { status: 'failed', detail: (error as Error).message }
       }
     }
-    return { ok: true, mode: 'cloud-api', detail: `Delivered to ${to}` }
-  } catch (error) {
-    return {
-      ok: false,
-      mode: 'cloud-api',
-      detail: (error as Error).name === 'TimeoutError' ? 'WhatsApp API timed out' : (error as Error).message,
-    }
+  } else {
+    // SMS/WhatsApp providers are intentionally not wired to a vendor here.
+    outcome = { status: 'skipped', detail: `${channel} provider not configured.` }
   }
+  await sql(
+    `INSERT INTO notifications (booking_id, channel, recipient, template, status, detail, sent_at) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+    [bookingId, channel, recipient, template, outcome.status, outcome.detail, outcome.status === 'sent' ? new Date() : null],
+  )
+  return outcome
 }
 
-/**
- * Sends an alert to every configured admin number.
- * Returns a summary plus the manual link so the UI can always offer a fallback.
- */
-export async function notifyAdminsWhatsApp(message: string): Promise<DeliveryResult> {
-  const recipients = await adminRecipients()
-  if (recipients.length === 0) {
-    return { ok: false, mode: 'not-configured', detail: 'No admin WhatsApp number saved in Settings → Notifications.' }
+export async function sendBookingConfirmationEmail(input: {
+  bookingId: string
+  email: string | null
+  reference: string
+  patientName: string
+  date: string
+  slot: string
+  totalPaise: number
+  trackingLink: string
+}) {
+  if (!input.email) {
+    await sql(`INSERT INTO notifications (booking_id, channel, recipient, template, status, detail) VALUES ($1,'email','','booking_confirmation','skipped','No email address provided.')`, [input.bookingId])
+    return
   }
+  return deliver('email', input.email, 'booking_confirmation', input.bookingId, `Booking ${input.reference} received — SV Diagnostics`,
+    `Hello ${input.patientName},\n\nWe received your booking ${input.reference} for ${input.date}, ${input.slot}.\nAmount: ${formatINR(input.totalPaise)} (${input.totalPaise > 0 ? 'payable as selected' : ''})\n\nTrack your booking: ${input.trackingLink}\n\nSV Diagnostics`)
+}
 
-  if (!await isCloudApiConfigured()) {
-    return {
-      ok: false,
-      mode: 'manual-link',
-      detail: 'Automatic sending is off — open the prepared message and press send.',
-      link: await manualLink(message),
-    }
-  }
+export async function sendStatusEmail(input: { bookingId: string; email: string | null; reference: string; status: BookingStatus; trackingLink: string }) {
+  if (!input.email) return
+  return deliver('email', input.email, 'booking_status', input.bookingId, `Booking ${input.reference}: ${STATUS_LABELS[input.status]}`,
+    `Your booking ${input.reference} is now: ${STATUS_LABELS[input.status]}.\n\nView details: ${input.trackingLink}\n\nSV Diagnostics`)
+}
 
-  const results = await Promise.all(recipients.map((to) => sendViaCloudApi(to, message)))
-  const delivered = results.filter((result) => result.ok).length
-  return {
-    ok: delivered > 0,
-    mode: 'cloud-api',
-    detail: delivered === results.length ? `Delivered to ${delivered} number${delivered === 1 ? '' : 's'}` : `${delivered}/${results.length} delivered — ${results.find((result) => !result.ok)?.detail ?? 'unknown error'}`,
-    link: delivered === results.length ? undefined : await manualLink(message),
-  }
+export async function notifyStaffEmail(input: { subject: string; text: string; bookingId: string | null }) {
+  await sql(`INSERT INTO notifications (booking_id, channel, recipient, template, status, detail) VALUES ($1,'in_app','staff','staff_alert','sent',$2)`, [input.bookingId, input.text.slice(0, 500)])
+  return deliver('email', process.env.STAFF_EMAIL ?? '', 'staff_alert', input.bookingId, input.subject, input.text)
+}
+
+export function emailConfigured() {
+  return configured()
 }
