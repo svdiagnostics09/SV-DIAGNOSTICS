@@ -41,14 +41,14 @@ export function StatCard({ label, value, hint, icon: Icon, tone = 'teal', href }
     </>
   )
   return href
-    ? <Link href={href} className="card block p-4 transition hover:border-teal/50 hover:shadow-card">{body}</Link>
+    ? <Link href={href} className="card block p-4 transition hover:-translate-y-0.5 hover:border-teal/40 hover:shadow-lift">{body}</Link>
     : <div className="card p-4">{body}</div>
 }
 
 export function EmptyState({ icon: Icon, title, description, action }: { icon: LucideIcon; title: string; description?: string; action?: React.ReactNode }) {
   return (
     <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
-      <span className="grid size-11 place-items-center rounded-full bg-[#eef2f8] text-muted"><Icon size={20} aria-hidden /></span>
+      <span className="grid size-11 place-items-center rounded-full bg-line-soft text-muted"><Icon size={20} aria-hidden /></span>
       <p className="mt-3 text-sm font-semibold text-navy">{title}</p>
       {description && <p className="mt-1 max-w-sm text-[13px] leading-5 text-muted">{description}</p>}
       {action && <div className="mt-4">{action}</div>}
@@ -98,7 +98,7 @@ export function Breadcrumbs({ items }: { items: Array<{ label: string; href?: st
 
 export function PageHeader({ title, description, breadcrumbs, children }: { title: string; description?: string; breadcrumbs?: Array<{ label: string; href?: string }>; children?: React.ReactNode }) {
   return (
-    <div className="border-b border-line bg-white">
+    <div className="border-b border-line-soft bg-surface">
       <div className="container-x py-7 sm:py-9">
         {breadcrumbs && <Breadcrumbs items={breadcrumbs} />}
         <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -116,7 +116,7 @@ export function PageHeader({ title, description, breadcrumbs, children }: { titl
 /** Rounded icon tile used across marketing sections. */
 export function IconTile({ icon: Icon, tone = 'teal', size = 'md' }: { icon: LucideIcon; tone?: 'teal' | 'navy'; size?: 'sm' | 'md' }) {
   return (
-    <span className={cn('grid shrink-0 place-items-center rounded-xl', size === 'sm' ? 'size-9' : 'size-11', tone === 'teal' ? 'bg-teal-50 text-teal-700' : 'bg-[#e8eef8] text-navy')}>
+    <span className={cn('grid shrink-0 place-items-center', size === 'sm' ? 'size-9 rounded-[10px]' : 'size-11 rounded-xl', tone === 'teal' ? 'bg-teal-50 text-teal-700' : 'bg-line-soft text-navy')}>
       <Icon size={size === 'sm' ? 17 : 21} aria-hidden />
     </span>
   )

@@ -71,11 +71,11 @@ export default async function HomePage() {
         })
       }} />
 
-      {/* Hero — navy headline with teal accent */}
-      <section className="border-b border-line bg-white">
-        <div className="container-x grid items-center gap-10 py-10 lg:grid-cols-[1.05fr_.95fr] lg:py-14">
+      {/* Hero — calm neutral surface with a soft teal accent */}
+      <section className="border-b border-line bg-page">
+        <div className="container-x grid items-center gap-10 py-12 lg:grid-cols-[1.05fr_.95fr] lg:py-16">
           <div>
-            <span className="badge badge-teal"><Sparkles size={12} aria-hidden /> {settings.city} · Lab &amp; imaging</span>
+            <span className="badge badge-gray"><Sparkles size={12} aria-hidden /> {settings.city} · Lab &amp; imaging</span>
             <h1 className="mt-4 text-[2.35rem] font-bold leading-[1.08] tracking-[-0.035em] sm:text-[3rem]">
               Accurate tests.<br />
               <span className="text-teal-700">Caring hands.</span><br />
@@ -98,10 +98,10 @@ export default async function HomePage() {
           </div>
 
           <div>
-            <div className="card bg-page p-6 sm:p-7">
+            <div className="card card-fold bg-surface p-6 pt-7 sm:p-7 sm:pt-8">
               <div className="flex items-start justify-between gap-3">
                 <IconTile icon={Home} />
-                <span className="badge badge-navy">Home collection</span>
+                <span className="badge badge-navy mr-7">Home collection</span>
               </div>
               <h2 className="mt-4 text-[18px] font-bold leading-snug">{banner ? banner.title : 'Sample collection from your home'}</h2>
               <p className="mt-1.5 text-[13px] leading-6 text-muted">
@@ -111,7 +111,7 @@ export default async function HomePage() {
                 <Link href="/tests" className="btn btn-primary">{banner?.ctaLabel || 'Book a test'} <ArrowRight size={15} aria-hidden /></Link>
                 <Link href="/track" className="btn btn-outline">Track appointment</Link>
               </div>
-              <dl className="mt-5 grid grid-cols-3 divide-x divide-line rounded-lg border border-line bg-white text-center">
+              <dl className="mt-5 grid grid-cols-3 divide-x divide-line overflow-hidden rounded-xl border border-line bg-white text-center">
                 {[
                   [String(categories.reduce((sum, category) => sum + category.testCount, 0)), 'Tests'],
                   [reportHours.length ? `${Math.min(...reportHours)} h` : '—', 'Fastest report'],
@@ -124,7 +124,7 @@ export default async function HomePage() {
                 ))}
               </dl>
             </div>
-            <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-line bg-teal-50/60 px-4 py-3 text-[12.5px]">
+            <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-line bg-surface px-4 py-3 text-[12.5px] shadow-card">
               <span className="flex items-center gap-2"><Clock3 size={14} className="text-teal-700" aria-hidden /> Reports are released as soon as the laboratory marks them ready.</span>
               <Link href="/faq" className="hidden font-semibold text-teal-700 hover:underline sm:inline">FAQ</Link>
             </div>
@@ -134,7 +134,7 @@ export default async function HomePage() {
 
       {/* Trust strip */}
       <section className="border-b border-line bg-white">
-        <div className="container-x grid grid-cols-2 divide-x divide-y divide-line sm:grid-cols-4 sm:divide-y-0">
+        <div className="container-x grid grid-cols-2 divide-x divide-y divide-line-soft sm:grid-cols-4 sm:divide-y-0">
           {([
             [Home, 'Home collection', 'Covered service areas'],
             [BadgeCheck, 'Quality processes', 'Documented procedures'],
@@ -142,7 +142,7 @@ export default async function HomePage() {
             [UserRound, 'Trained collectors', 'Samples handled with care'],
           ] as [typeof Home, string, string][]).map(([Icon, title, sub]) => (
             <div key={title} className="flex items-center gap-2.5 px-4 py-3.5">
-              <Icon size={18} className="shrink-0 text-teal-700" aria-hidden />
+              <Icon size={18} className="shrink-0 text-muted" aria-hidden />
               <div>
                 <b className="block text-[12.5px] font-semibold leading-tight text-navy">{title}</b>
                 <span className="text-[11px] text-muted">{sub}</span>
@@ -168,7 +168,7 @@ export default async function HomePage() {
         ) : (
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {categories.slice(0, 8).map((category) => (
-              <Link key={category.id} href={`/tests?category=${category.slug}`} className="card group flex items-center gap-3 p-3.5 transition hover:border-teal/50 hover:shadow-card">
+              <Link key={category.id} href={`/tests?category=${category.slug}`} className="card group flex items-center gap-3 p-3.5 transition hover:-translate-y-0.5 hover:border-teal/40 hover:shadow-lift">
                 <IconTile icon={CATEGORY_ICONS[category.slug] ?? FlaskConical} size="sm" />
                 <div className="min-w-0 flex-1">
                   <b className="block truncate text-[13.5px] font-semibold text-navy">{category.name}</b>
@@ -218,10 +218,10 @@ export default async function HomePage() {
             </div>
             <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {topPackages.map((pack) => (
-                <article key={pack.id} className="card flex flex-col p-4 transition hover:border-teal/50 hover:shadow-card">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="badge badge-teal">Package</span>
-                    {pack.isPopular && <span className="badge badge-navy">Popular</span>}
+                <article key={pack.id} className="card group flex flex-col p-4 pt-4 pb-5 transition hover:-translate-y-0.5 hover:border-teal/40 hover:shadow-lift">
+                  <div className="plate flex items-center justify-between gap-2 rounded-lg px-3 py-2">
+                    <span className="badge badge-gray bg-white">Package</span>
+                    {pack.isPopular && <span className="badge badge-teal">Popular</span>}
                   </div>
                   <h3 className="mt-2.5 text-[15px] font-bold leading-snug text-navy"><Link href={`/packages/${pack.slug}`} className="hover:text-teal-700">{pack.name}</Link></h3>
                   <p className="mt-1.5 text-[12.5px] text-muted">{pack.testCount} test{pack.testCount === 1 ? '' : 's'} included</p>
@@ -269,7 +269,7 @@ export default async function HomePage() {
       {/* Area check + locations */}
       <section className="py-12">
         <div className="container-x grid gap-5 lg:grid-cols-[1fr_.9fr]">
-          <div className="card border-teal/30 bg-teal-50/50 p-6">
+          <div className="card border-line p-6 shadow-card">
             <div className="flex items-center gap-2"><MapPin size={18} className="text-teal-700" aria-hidden /><h2 className="text-[16px] font-bold">Check if we collect near you</h2></div>
             <p className="mt-1 text-[13px] leading-6 text-muted">Enter your pincode to see whether home sample collection is available in your area.</p>
             <AreaCheck areas={activeAreas.map((area) => ({ name: area.name, pincodes: area.pincodes, feePaise: area.collectionFeePaise }))} />
@@ -307,7 +307,7 @@ export default async function HomePage() {
         <section className="border-t border-line bg-white py-12">
           <div className="container-x max-w-3xl">
             <SectionHeading eyebrow="Questions" title="Frequently asked questions" />
-            <div className="mt-5 divide-y divide-line rounded-xl border border-line">
+            <div className="mt-5 divide-y divide-line overflow-hidden rounded-xl border border-line bg-white">
               {faqs.slice(0, 6).map((faq) => (
                 <details key={faq.id} className="group px-4 py-3.5 [&_summary::-webkit-details-marker]:hidden">
                   <summary className="flex cursor-pointer items-center justify-between gap-3 text-[14px] font-semibold text-navy">
@@ -326,13 +326,13 @@ export default async function HomePage() {
       {/* CTA band */}
       <section className="pb-12 pt-4">
         <div className="container-x">
-          <div className="relative overflow-hidden rounded-2xl bg-navy p-8 text-center sm:p-10">
-            <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.08]" style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '36px 36px' }} />
-            <h2 className="relative text-[1.5rem] font-bold text-white sm:text-[1.8rem]">Ready to book your test?</h2>
-            <p className="relative mx-auto mt-2 max-w-xl text-[13.5px] leading-6 text-white/70">Choose from our published tests and packages. Home collection where we cover your area.</p>
+          <div className="relative overflow-hidden rounded-[24px] border border-line bg-surface p-8 text-center shadow-card sm:p-10">
+            <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.5]" style={{ backgroundImage: 'linear-gradient(var(--color-line-soft) 1px, transparent 1px), linear-gradient(90deg, var(--color-line-soft) 1px, transparent 1px)', backgroundSize: '36px 36px' }} />
+            <h2 className="relative text-[1.5rem] font-bold sm:text-[1.8rem]">Ready to book your test?</h2>
+            <p className="relative mx-auto mt-2 max-w-xl text-[13.5px] leading-6 text-muted">Choose from our published tests and packages. Home collection where we cover your area.</p>
             <div className="relative mt-5 flex flex-wrap justify-center gap-2">
               <Link href="/tests" className="btn btn-primary">Book a test now <ArrowRight size={15} aria-hidden /></Link>
-              <Link href="/contact" className="btn border border-white/25 bg-transparent text-white hover:bg-white/10">Talk to us</Link>
+              <Link href="/contact" className="btn btn-outline">Talk to us</Link>
             </div>
           </div>
         </div>

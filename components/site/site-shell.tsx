@@ -59,7 +59,7 @@ function Header({ settings }: { settings: PublicSettings }) {
   const isActive = (href: string) => pathname === href || (href !== '/' && pathname.startsWith(href))
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/90">
+    <header className="sticky top-0 z-40 border-b border-line-soft bg-white/80 backdrop-blur-xl supports-[backdrop-filter]:bg-white/70">
       {settings.announcementEnabled && settings.announcement && (
         <div className="bg-navy text-white">
           <div className="container-x flex min-h-9 items-center justify-center gap-2 py-1.5 text-center text-[12px] sm:text-[12.5px]">
@@ -72,7 +72,7 @@ function Header({ settings }: { settings: PublicSettings }) {
       <div className="border-b border-line">
         <div className="container-x flex h-16 items-center justify-between gap-3">
           <Link href="/" className="flex items-center gap-2.5" aria-label={`${settings.brandName} home`}>
-            <span className="grid size-9 place-items-center rounded-lg bg-navy text-white"><TestTube2 size={19} aria-hidden /></span>
+            <span className="grid size-9 place-items-center rounded-xl bg-navy text-white shadow-card"><TestTube2 size={19} aria-hidden /></span>
             <span className="leading-tight">
               <b className="block text-[15.5px] font-bold tracking-tight text-navy">{settings.brandName}</b>
               <span className="block text-[10px] font-semibold uppercase tracking-[0.13em] text-muted">{settings.tagline}</span>
@@ -85,7 +85,7 @@ function Header({ settings }: { settings: PublicSettings }) {
                 <Link
                   href={item.href}
                   onMouseEnter={() => setOpenGroup(item.children ? item.label : null)}
-                  className={`flex items-center gap-1 rounded-md px-3 py-2 text-[13.5px] font-medium transition ${isActive(item.href) ? 'bg-teal-50 text-teal-700' : 'text-ink hover:bg-page hover:text-navy'}`}
+                  className={`flex items-center gap-1 rounded-full px-3.5 py-2 text-[13.5px] font-medium transition ${isActive(item.href) ? 'bg-line-soft text-navy' : 'text-ink hover:bg-line-soft hover:text-navy'}`}
                   aria-current={isActive(item.href) ? 'page' : undefined}
                 >
                   {item.label}
@@ -93,9 +93,9 @@ function Header({ settings }: { settings: PublicSettings }) {
                 </Link>
                 {item.children && openGroup === item.label && (
                   <div className="absolute left-0 top-full z-50 w-60 pt-1.5">
-                    <div className="card p-1.5 shadow-card">
+                    <div className="card p-1.5 shadow-lift">
                       {item.children.map((child) => (
-                        <Link key={child.href} href={child.href} className="block rounded-md px-3 py-2 hover:bg-page">
+                        <Link key={child.href} href={child.href} className="block rounded-lg px-3 py-2 hover:bg-surface">
                           <b className="block text-[13px] font-semibold text-navy">{child.label}</b>
                           <span className="block text-[11.5px] text-muted">{child.desc}</span>
                         </Link>
@@ -108,14 +108,14 @@ function Header({ settings }: { settings: PublicSettings }) {
           </nav>
 
           <div className="flex items-center gap-2">
-            <Link href="/book" className="relative hidden size-10 place-items-center rounded-lg border border-line text-navy transition hover:border-teal hover:text-teal-700 sm:grid" aria-label={`Booking cart${cart.count ? `, ${cart.count} items` : ''}`}>
+            <Link href="/book" className="relative hidden size-10 place-items-center rounded-full border border-line text-navy transition hover:border-teal hover:text-teal-700 sm:grid" aria-label={`Booking cart${cart.count ? `, ${cart.count} items` : ''}`}>
               <ShoppingBag size={17} aria-hidden />
               {cart.ready && cart.count > 0 && (
                 <span className="absolute -right-1 -top-1 grid size-[18px] place-items-center rounded-full bg-teal text-[10px] font-bold text-white">{cart.count}</span>
               )}
             </Link>
             <Link href="/tests" className="btn btn-primary hidden sm:inline-flex">Book a test <ArrowRight size={15} aria-hidden /></Link>
-            <button type="button" onClick={() => setMenuOpen((open) => !open)} aria-expanded={menuOpen} aria-controls="mobile-nav" className="grid size-10 place-items-center rounded-lg border border-line lg:hidden">
+            <button type="button" onClick={() => setMenuOpen((open) => !open)} aria-expanded={menuOpen} aria-controls="mobile-nav" className="grid size-10 place-items-center rounded-full border border-line lg:hidden">
               {menuOpen ? <X size={19} aria-hidden /> : <Menu size={19} aria-hidden />}
               <span className="sr-only">{menuOpen ? 'Close menu' : 'Open menu'}</span>
             </button>
@@ -148,7 +148,7 @@ function Header({ settings }: { settings: PublicSettings }) {
 function Footer({ settings }: { settings: PublicSettings }) {
   const year = new Date().getFullYear()
   return (
-    <footer className="mt-16 border-t border-line bg-white">
+    <footer className="mt-16 border-t border-line bg-surface">
       <div className="container-x grid gap-8 py-12 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <div className="flex items-center gap-2.5">
@@ -198,7 +198,7 @@ function Footer({ settings }: { settings: PublicSettings }) {
         </div>
       </div>
 
-      <div className="border-t border-line">
+      <div className="border-t border-line-soft">
         <div className="container-x flex flex-col gap-3 py-5 text-[12px] text-muted sm:flex-row sm:items-center sm:justify-between">
           <p>© {year} {settings.brandName}. All rights reserved.</p>
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
