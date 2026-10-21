@@ -153,8 +153,8 @@ function BrandAssets({ form, onToast, onChanged }: {
         <p className="mt-0.5 text-[11.5px] text-muted">Replace the built-in orange-and-green mark. PNG, JPG, WebP, SVG or ICO up to 1.5 MB.</p>
       </div>
       <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-5">
-        <AssetTile
-          label="Logo" hint="Shown in the header and footer." ratio="square" url={form.logoUrl}
+          <AssetTile
+          label="Logo" hint="Transparent PNG or SVG, square, bold shapes. Avoid photographs — they vanish at header size." ratio="square" url={form.logoUrl}
           busy={busy === 'logo'} onPick={() => logoInput.current?.click()} onReset={() => reset('logo')}
           resetDisabled={!form.logoUrl}
         />
@@ -192,6 +192,31 @@ function AssetTile({ label, hint, ratio, url, busy, onPick, onReset, resetDisabl
           <span className="text-[11px] text-muted">No custom {label.toLowerCase()}</span>
         )}
       </div>
+
+      {/* Show the asset at the size it is actually used — a photograph that
+          looks fine large can disappear at 32px. */}
+      {url && (
+        <div className="mt-2.5 rounded-lg border border-line-soft bg-surface p-2">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">At real size</p>
+          <div className="mt-1.5 flex items-end gap-3">
+            {(ratio === 'square' ? [40, 32] : [32, 16]).map((size) => (
+              <span key={size} className="flex flex-col items-center gap-1">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt="" aria-hidden className="object-contain" style={{ width: size, height: size }} />
+                <span className="text-[9.5px] tabular-nums text-muted">{size}px</span>
+              </span>
+            ))}
+            <span className="flex items-center gap-1.5 pl-1">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={url} alt="" aria-hidden className="size-8 object-contain" />
+              <span className="text-[11px] font-bold leading-tight text-forest">SV Diagnostics</span>
+            </span>
+          </div>
+          <p className="mt-1.5 text-[10px] leading-4 text-muted">
+            If this is hard to recognise here, use a simpler mark: transparent background, square, bold shapes.
+          </p>
+        </div>
+      )}
 
       <div className="mt-2.5 flex gap-2">
         <button type="button" onClick={onPick} disabled={busy} className="btn btn-outline btn-sm flex-1">
