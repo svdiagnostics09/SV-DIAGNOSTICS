@@ -36,6 +36,9 @@ export const DEFAULT_SETTINGS = {
   timezone: 'Asia/Kolkata',
   city: 'Hyderabad',
   state: 'Telangana',
+  /** Empty = use the built-in mark. Set from Admin → Business settings. */
+  logoUrl: '',
+  faviconUrl: '',
 }
 
 type SettingsShape = typeof DEFAULT_SETTINGS
@@ -66,6 +69,9 @@ export const settingsSchema = z.object({
   bookingTermsText: z.string().trim().min(10).max(4000),
   city: z.string().trim().min(2).max(60),
   state: z.string().trim().min(2).max(60),
+  /** Stored as a path under /uploads/brand/* or an absolute https URL. */
+  logoUrl: z.union([z.literal(''), z.string().trim().max(500)]).optional(),
+  faviconUrl: z.union([z.literal(''), z.string().trim().max(500)]).optional(),
 })
 
 export async function getSettings(): Promise<BusinessSettings> {
@@ -115,6 +121,8 @@ export function publicSettings(settings: BusinessSettings) {
     city: settings.city,
     state: settings.state,
     timezone: settings.timezone,
+    logoUrl: settings.logoUrl ?? '',
+    faviconUrl: settings.faviconUrl ?? '',
   }
 }
 

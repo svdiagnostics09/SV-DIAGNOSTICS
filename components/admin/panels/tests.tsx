@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Archive, Check, ExternalLink, Eye, EyeOff, Filter, Pencil, Plus, Search, TestTube2, Trash2 } from 'lucide-react'
+import { Archive, Check, ChevronLeft, ChevronRight, ExternalLink, Eye, EyeOff, Filter, Pencil, Plus, Search, TestTube2, Trash2 } from 'lucide-react'
 import { adminFetch, useAdminResource } from '@/components/admin/fetch'
 import { TestForm, type TestDraft } from '@/components/admin/test-form'
 import { formatINR } from '@/lib/format'
@@ -33,6 +33,7 @@ export function TestsPanel({ onToast }: { onToast: (text: string, tone?: 'succes
   const [busyId, setBusyId] = useState<number | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<AdminTest | null>(null)
   const [viewing, setViewing] = useState<AdminTest | null>(null)
+  const [page, setPage] = useState(1)
 
   const rows = useMemo(() => {
     const needle = query.trim().toLowerCase()
@@ -42,6 +43,12 @@ export function TestsPanel({ onToast }: { onToast: (text: string, tone?: 'succes
       && (!needle || `${test.name} ${test.categoryName} ${test.sampleType}`.toLowerCase().includes(needle)),
     )
   }, [tests.data, query, status, category])
+
+  // Page the table: 169 rows at once produced a ~10,000px page.
+  const PAGE_SIZE = 25
+  const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE))
+  const safePage = Math.min(page, pageCount)
+  const pageRows = rows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
 
   const patch = async (test: AdminTest, body: Record<string, unknown>, message: string) => {
     setBusyId(test.id)
@@ -116,10 +123,9 @@ export function TestsPanel({ onToast }: { onToast: (text: string, tone?: 'succes
               {!tests.loading && rows.length === 0 && (
                 <tr><td colSpan={7}><EmptyState icon={TestTube2} title="No tests match this view" description="Adjust the filters, or add the first test to the catalogue." action={<button type="button" onClick={() => setEditor({})} className="btn btn-primary btn-sm"><Plus size={14} aria-hidden /> Add test</button>} /></td></tr>
               )}
-              {rows.map((test) => (
-                <tr key={test.id} className="hover:bg-page/60">
-                  <td className="max-w-[240px] px-3 py-2.5">
-                    <b className="block truncate text-[12.5px] font-semibold text-navy">{test.name}</b>
+              {pageRows.map((test) => (                <tr key={test.id} className="hover:bg-page/60">
+                  <td className="min-w-[280px] px-3 py-2.5">
+                    <b className="block text-[12.5px] font-semibold leading-snug text-forest">{test.name}</b>
                     <span className="text-[10.5px] text-muted">{test.homeCollection ? 'Home eligible' : 'Lab only'}{test.isPopular ? ' · popular' : ''}</span>
                   </td>
                   <td className="px-3 py-2.5 text-muted">{test.categoryName || '—'}</td>
@@ -151,6 +157,18 @@ export function TestsPanel({ onToast }: { onToast: (text: string, tone?: 'succes
             </tbody>
           </table>
         </div>
+        {rows.length > PAGE_SIZE && (
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line px-3 py-2 text-[12px]">
+            <span className="text-muted">
+              Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, rows.length)} of {rows.length}
+            </span>
+            <div className="flex items-center gap-1">
+              <button type="button" disabled={safePage <= 1} onClick={() => setPage(safePage - 1)} className="btn btn-outline btn-sm"><ChevronLeft size={13} aria-hidden /> Prev</button>
+              <span className="px-2 tabular-nums text-muted">{safePage} / {pageCount}</span>
+              <button type="button" disabled={safePage >= pageCount} onClick={() => setPage(safePage + 1)} className="btn btn-outline btn-sm">Next <ChevronRight size={13} aria-hidden /></button>
+            </div>
+          </div>
+        )}
       </div>
 
       {editor && (

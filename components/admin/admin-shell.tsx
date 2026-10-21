@@ -47,11 +47,11 @@ export function AdminShell({ user, groups, active, title, description, onNavigat
                     type="button"
                     onClick={() => { onNavigate(item.key); setMobileOpen(false) }}
                     aria-current={selected ? 'page' : undefined}
-                    className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium transition ${selected ? 'bg-teal text-white shadow-[0_6px_16px_-8px_rgba(32,169,156,0.9)]' : 'text-white/70 hover:bg-white/8 hover:text-white'}`}
+                    className={`flex w-full items-center gap-2.5 rounded-full px-3 py-2 text-left text-[13px] font-medium transition ${selected ? 'bg-mint text-forest shadow-[0_6px_16px_-8px_rgba(0,185,139,0.85)]' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
                   >
                     <Icon size={16} className="shrink-0" aria-hidden />
                     <span className="truncate">{item.label}</span>
-                    {item.badge ? <span className={`ml-auto rounded-full px-1.5 py-px text-[10px] font-bold tabular-nums ${selected ? 'bg-white/25' : 'bg-white/10 text-white/80'}`}>{item.badge}</span> : null}
+                    {item.badge ? <span className={`ml-auto rounded-full px-1.5 py-px text-[10px] font-bold tabular-nums ${selected ? 'bg-forest/15 text-forest' : 'bg-white/10 text-white/80'}`}>{item.badge}</span> : null}
                   </button>
                 </li>
               )
@@ -65,9 +65,9 @@ export function AdminShell({ user, groups, active, title, description, onNavigat
   return (
     <div className="min-h-screen bg-page">
       {/* Sidebar — desktop */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col bg-navy lg:flex">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col bg-band-forest lg:flex">
         <div className="flex h-16 items-center gap-2.5 border-b border-white/10 px-4">
-          <span className="grid size-9 place-items-center rounded-lg bg-teal text-[13px] font-extrabold text-white">SV</span>
+          <span className="grid size-9 place-items-center rounded-[10px] bg-orange text-[13px] font-extrabold text-white">SV</span>
           <div>
             <b className="block text-[14px] font-bold leading-tight text-white">SV Diagnostics</b>
             <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/45">Admin Panel</span>
@@ -75,9 +75,9 @@ export function AdminShell({ user, groups, active, title, description, onNavigat
         </div>
         {NavItems}
         <div className="shrink-0 border-t border-white/10 p-3">
-          <div className="rounded-lg bg-white/5 px-2.5 py-2">
+          <div className="rounded-xl bg-white/[0.07] px-2.5 py-2">
             <p className="truncate text-[11.5px] font-semibold leading-tight text-white">{user.name}</p>
-            <p className="mt-0.5 truncate text-[10px] leading-tight text-white/50">{user.email} · <span className="uppercase tracking-wider text-teal">{user.role}</span></p>
+            <p className="mt-0.5 truncate text-[10px] leading-tight text-white/50">{user.email} · <span className="uppercase tracking-wider text-mint">{user.role}</span></p>
           </div>
         </div>
       </aside>
@@ -86,10 +86,10 @@ export function AdminShell({ user, groups, active, title, description, onNavigat
       {mobileOpen && (
         <div className="fixed inset-0 z-50 flex lg:hidden">
           <div className="absolute inset-0 bg-navy/50" onClick={() => setMobileOpen(false)} aria-hidden />
-          <aside className="relative flex h-full w-72 flex-col bg-navy">
+          <aside className="relative flex h-full w-72 flex-col bg-band-forest">
             <div className="flex h-16 items-center justify-between border-b border-white/10 px-4">
               <div className="flex items-center gap-2.5">
-                <span className="grid size-9 place-items-center rounded-lg bg-teal text-[13px] font-extrabold text-white">SV</span>
+                <span className="grid size-9 place-items-center rounded-[10px] bg-orange text-[13px] font-extrabold text-white">SV</span>
                 <div><b className="block text-[14px] font-bold text-white">SV Diagnostics</b><span className="text-[10px] uppercase tracking-[0.14em] text-white/45">Admin Panel</span></div>
               </div>
               <button type="button" onClick={() => setMobileOpen(false)} className="grid size-8 place-items-center rounded-md text-white/70 hover:bg-white/10" aria-label="Close menu"><X size={17} aria-hidden /></button>
@@ -100,15 +100,15 @@ export function AdminShell({ user, groups, active, title, description, onNavigat
       )}
 
       <div className="lg:pl-64">
-        <header className="sticky top-0 z-30 border-b border-line bg-white">
+        <header className="sticky top-0 z-30 border-b border-line bg-white/85 backdrop-blur-xl">
           <div className="flex h-16 items-center gap-3 px-4 sm:px-6">
-            <button type="button" onClick={() => setMobileOpen(true)} className="grid size-9 place-items-center rounded-lg border border-line lg:hidden" aria-label="Open menu"><Menu size={17} aria-hidden /></button>
+            <button type="button" onClick={() => setMobileOpen(true)} className="grid size-9 place-items-center rounded-full border border-line lg:hidden" aria-label="Open menu"><Menu size={17} aria-hidden /></button>
             <div className="min-w-0">
               <h1 className="truncate text-[15px] font-bold leading-tight">{title}</h1>
               {description && <p className="hidden truncate text-[11.5px] text-muted sm:block">{description}</p>}
             </div>
             <div className="ml-auto flex items-center gap-2">
-              <button type="button" onClick={onRefresh} className="hidden items-center gap-1.5 rounded-lg border border-line px-2.5 py-1.5 text-[12px] font-medium text-muted transition hover:border-teal hover:text-teal-700 sm:flex" aria-label="Refresh data">
+              <button type="button" onClick={onRefresh} className="hidden items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-[12px] font-medium text-muted transition hover:border-green hover:text-green sm:flex" aria-label="Refresh data">
                 <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} aria-hidden /> Refresh
               </button>
               <span className="hidden max-w-[200px] truncate rounded-full bg-page px-3 py-1.5 text-[11.5px] font-medium text-muted md:block" title={user.email}>{user.email}</span>
@@ -117,8 +117,7 @@ export function AdminShell({ user, groups, active, title, description, onNavigat
             </div>
           </div>
         </header>
-        <main className="p-4 sm:p-6">{children}</main>
-      </div>
+        <main className="mx-auto w-full max-w-[1600px] p-4 sm:p-6 [&>div]:min-h-[calc(100dvh-7rem)]">{children}</main>      </div>
     </div>
   )
 }

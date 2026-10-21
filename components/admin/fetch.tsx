@@ -3,12 +3,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 /** Small fetch helper for admin screens: JSON in, JSON out, errors surfaced. */
-export async function adminFetch<T = unknown>(url: string, init: { method?: string; body?: unknown } = {}): Promise<{ ok: true; data: T } | { ok: false; error: string; status: number }> {
+export async function adminFetch<T = unknown>(url: string, init: { method?: string; body?: unknown; formData?: FormData } = {}): Promise<{ ok: true; data: T } | { ok: false; error: string; status: number }> {
   try {
+    // Multipart uploads must NOT get a Content-Type header — the browser adds
+    // it, including the boundary.
+    const isUpload = init.formData instanceof FormData
     const response = await fetch(url, {
       method: init.method ?? 'GET',
-      headers: init.body !== undefined ? { 'Content-Type': 'application/json', 'x-sv-request': 'fetch' } : { 'x-sv-request': 'fetch' },
-      body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
+      headers: isUpload
+        ? { 'x-sv-request': 'fetch' }
+        : init.body !== undefined ? { 'Content-Type': 'application/json', 'x-sv-request': 'fetch' } : { 'x-sv-request': 'fetch' },
+      body: isUpload ? init.formData : init.body !== undefined ? JSON.stringify(init.body) : undefined,
       cache: 'no-store',
     })
     if (response.status === 401) {

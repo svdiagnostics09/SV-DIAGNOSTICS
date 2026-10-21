@@ -65,11 +65,17 @@ export function DashboardPanel({ initial, onOpen }: { initial: Record<string, un
               <p className="text-[11.5px] text-muted">Only bookings marked paid by a verified event</p>
             </div>
             <div className="card p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">Scheduled</p>
-              <ul className="mt-1 space-y-0.5 text-[12px]">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">Bookings by status</p>
+              <ul className="mt-1.5 space-y-1 text-[12px]">
                 {Object.entries(data.byStatus).filter(([, value]) => value > 0).length === 0 && <li className="text-muted">No bookings yet.</li>}
                 {Object.entries(data.byStatus).filter(([, value]) => value > 0).map(([status, value]) => (
-                  <li key={status} className="flex justify-between gap-2"><span className="text-muted">{STATUS_LABEL[status] ?? status}</span><b className="tabular-nums">{value}</b></li>
+                  <li key={status} className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-1.5 text-muted">
+                      <span aria-hidden className={`size-1.5 rounded-full ${status === 'cancelled' ? 'bg-danger' : status === 'completed' ? 'bg-success' : 'bg-mint'}`} />
+                      {STATUS_LABEL[status] ?? status}
+                    </span>
+                    <b className="tabular-nums">{value}</b>
+                  </li>
                 ))}
               </ul>
             </div>

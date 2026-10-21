@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Loader2, Save, ShieldCheck, UserCog } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Image as ImageIcon, Loader2, RotateCcw, Save, ShieldCheck, Upload, UserCog } from 'lucide-react'
 import { adminFetch, useAdminResource } from '@/components/admin/fetch'
 import type { AdminUser } from '@/lib/auth'
 
@@ -11,7 +11,7 @@ interface SettingsResponse {
     announcement: string; announcementEnabled: boolean; openingHours: string; aboutText: string; collectionEnabled: boolean
     collectionFeePaise: number; bookingHorizonDays: number; slotHoldMinutes: number; payOnlineEnabled: boolean; payAtLabEnabled: boolean
     payAtHomeEnabled: boolean; cancellationWindowHours: number; consentVersion: string; patientConsentText: string; bookingTermsText: string
-    city: string; state: string
+    city: string; state: string; logoUrl: string; faviconUrl: string
   }
   internal: { bookingHorizonDays: number; slotHoldMinutes: number }
   admins: Array<{ id: string; email: string; name: string; role: string; isActive: boolean; lastLoginAt: string | null }>
@@ -45,58 +45,175 @@ export function SettingsPanel({ user, onToast }: { user: AdminUser; onToast: (te
   if (!form) return <div className="card p-6"><Loader2 className="animate-spin text-muted" size={18} aria-hidden /></div>
 
   return (
-    <div className="space-y-5">
-      <section className="card p-4">
-        <h2 className="text-[14px] font-bold">Website &amp; brand</h2>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <Field label="Brand name" id="s-brand"><input id="s-brand" className="input" value={form.brandName} onChange={(event) => set('brandName', event.target.value)} /></Field>
-          <Field label="Tagline" id="s-tagline"><input id="s-tagline" className="input" value={form.tagline} onChange={(event) => set('tagline', event.target.value)} /></Field>
-          <Field label="Support phone" id="s-phone"><input id="s-phone" className="input" value={form.supportPhone} onChange={(event) => set('supportPhone', event.target.value)} /></Field>
-          <Field label="Support email" id="s-email"><input id="s-email" type="email" className="input" value={form.supportEmail} onChange={(event) => set('supportEmail', event.target.value)} /></Field>
-          <Field label="WhatsApp number" id="s-wa"><input id="s-wa" className="input" value={form.whatsappNumber} onChange={(event) => set('whatsappNumber', event.target.value)} /></Field>
-          <Field label="Opening hours" id="s-hours"><input id="s-hours" className="input" value={form.openingHours} onChange={(event) => set('openingHours', event.target.value)} /></Field>
-          <Field label="Address" id="s-address"><input id="s-address" className="input" value={form.address} onChange={(event) => set('address', event.target.value)} /></Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="City" id="s-city"><input id="s-city" className="input" value={form.city} onChange={(event) => set('city', event.target.value)} /></Field>
-            <Field label="State" id="s-state"><input id="s-state" className="input" value={form.state} onChange={(event) => set('state', event.target.value)} /></Field>
-          </div>
-          <div className="sm:col-span-2">
-            <Field label="Announcement bar" id="s-announce"><input id="s-announce" className="input" value={form.announcement} onChange={(event) => set('announcement', event.target.value)} maxLength={240} /></Field>
-            <label className="mt-2 flex items-center gap-2 text-[12.5px]"><input type="checkbox" checked={form.announcementEnabled} onChange={(event) => set('announcementEnabled', event.target.checked)} className="size-4 accent-[#20A99C]" /> Show announcement bar</label>
-          </div>
-          <div className="sm:col-span-2">
-            <Field label="About text" id="s-about"><textarea id="s-about" rows={4} className="input" value={form.aboutText} onChange={(event) => set('aboutText', event.target.value)} /></Field>
-          </div>
-        </div>
-      </section>
+    <div className="space-y-4">
+      <BrandAssets form={form} onToast={onToast} onChanged={(settings) => setForm((current) => current ? { ...current, ...settings } : current)} />
 
-      <section className="card p-4">
-        <h2 className="text-[14px] font-bold">Bookings &amp; payments</h2>
-        <div className="mt-3 grid gap-3 sm:grid-cols-3">
-          <Field label="Home collection fee (₹)" id="s-fee"><input id="s-fee" className="input" value={String(form.collectionFeePaise / 100)} onChange={(event) => set('collectionFeePaise', Math.round(Number(event.target.value.replace(/[^\d.]/g, '') || 0) * 100))} /></Field>
-          <Field label="Booking horizon (days)" id="s-horizon"><input id="s-horizon" className="input" value={String(form.bookingHorizonDays)} onChange={(event) => set('bookingHorizonDays', Number(event.target.value.replace(/\D/g, '') || 1))} /></Field>
-          <Field label="Checkout hold (minutes)" id="s-hold"><input id="s-hold" className="input" value={String(form.slotHoldMinutes)} onChange={(event) => set('slotHoldMinutes', Number(event.target.value.replace(/\D/g, '') || 5))} /></Field>
-          <Field label="Cancellation window (hours)" id="s-cancel"><input id="s-cancel" className="input" value={String(form.cancellationWindowHours)} onChange={(event) => set('cancellationWindowHours', Number(event.target.value.replace(/\D/g, '') || 0))} /></Field>
+      <SettingsSection title="Business details" description="Shown on the website footer, contact pages and confirmation emails.">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <Field label="Brand name" id="s-brand" hint="Appears in the header and report footers."><input id="s-brand" className="input" value={form.brandName} onChange={(event) => set('brandName', event.target.value)} /></Field>
+          <Field label="Tagline" id="s-tagline"><input id="s-tagline" className="input" value={form.tagline} onChange={(event) => set('tagline', event.target.value)} /></Field>
+          <Field label="Opening hours" id="s-hours"><input id="s-hours" className="input" value={form.openingHours} onChange={(event) => set('openingHours', event.target.value)} /></Field>
+          <Field label="Support phone" id="s-phone" hint="Used by the call button and confirmation SMS."><input id="s-phone" className="input" inputMode="tel" value={form.supportPhone} onChange={(event) => set('supportPhone', event.target.value)} /></Field>
+          <Field label="Support email" id="s-email"><input id="s-email" type="email" className="input" value={form.supportEmail} onChange={(event) => set('supportEmail', event.target.value)} /></Field>
+          <Field label="WhatsApp number" id="s-wa"><input id="s-wa" className="input" inputMode="tel" value={form.whatsappNumber} onChange={(event) => set('whatsappNumber', event.target.value)} /></Field>
+          <div className="sm:col-span-2 lg:col-span-3">
+            <Field label="Address" id="s-address" hint="Full postal address shown in the footer."><input id="s-address" className="input" value={form.address} onChange={(event) => set('address', event.target.value)} /></Field>
+          </div>
+          <Field label="City" id="s-city"><input id="s-city" className="input" value={form.city} onChange={(event) => set('city', event.target.value)} /></Field>
+          <Field label="State" id="s-state"><input id="s-state" className="input" value={form.state} onChange={(event) => set('state', event.target.value)} /></Field>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection title="Announcement bar" description="The dark-green strip above the header on every storefront page.">
+        <Field label="Message" id="s-announce" hint={`${form.announcement.length}/240 characters`}>
+          <input id="s-announce" className="input" value={form.announcement} onChange={(event) => set('announcement', event.target.value)} maxLength={240} />
+        </Field>
+        <label className="mt-3 flex items-center gap-2 text-[12.5px]"><input type="checkbox" checked={form.announcementEnabled} onChange={(event) => set('announcementEnabled', event.target.checked)} className="size-4 accent-[#00B98B]" /> Show the announcement bar</label>
+      </SettingsSection>
+
+      <SettingsSection title="About the laboratory" description="Used on the About page and in structured data for search engines.">
+        <Field label="About text" id="s-about"><textarea id="s-about" rows={5} className="input" value={form.aboutText} onChange={(event) => set('aboutText', event.target.value)} /></Field>
+      </SettingsSection>
+
+      <SettingsSection title="Bookings &amp; payments" description="Operational limits. Changing these affects new bookings immediately.">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <Field label="Home collection fee (₹)" id="s-fee"><input id="s-fee" className="input" inputMode="decimal" value={String(form.collectionFeePaise / 100)} onChange={(event) => set('collectionFeePaise', Math.round(Number(event.target.value.replace(/[^\d.]/g, '') || 0) * 100))} /></Field>
+          <Field label="Booking horizon (days)" id="s-horizon"><input id="s-horizon" className="input" inputMode="numeric" value={String(form.bookingHorizonDays)} onChange={(event) => set('bookingHorizonDays', Number(event.target.value.replace(/\D/g, '') || 1))} /></Field>
+          <Field label="Checkout hold (minutes)" id="s-hold"><input id="s-hold" className="input" inputMode="numeric" value={String(form.slotHoldMinutes)} onChange={(event) => set('slotHoldMinutes', Number(event.target.value.replace(/\D/g, '') || 5))} /></Field>
+          <Field label="Cancellation window (hours)" id="s-cancel"><input id="s-cancel" className="input" inputMode="numeric" value={String(form.cancellationWindowHours)} onChange={(event) => set('cancellationWindowHours', Number(event.target.value.replace(/\D/g, '') || 0))} /></Field>
           <Field label="Consent version" id="s-consent"><input id="s-consent" className="input" value={form.consentVersion} onChange={(event) => set('consentVersion', event.target.value)} /></Field>
         </div>
-        <div className="mt-3 flex flex-wrap gap-4 text-[12.5px]">
-          <label className="flex items-center gap-2"><input type="checkbox" checked={form.collectionEnabled} onChange={(event) => set('collectionEnabled', event.target.checked)} className="size-4 accent-[#20A99C]" /> Home collection enabled</label>
-          <label className="flex items-center gap-2"><input type="checkbox" checked={form.payOnlineEnabled} onChange={(event) => set('payOnlineEnabled', event.target.checked)} className="size-4 accent-[#20A99C]" /> Online payment</label>
-          <label className="flex items-center gap-2"><input type="checkbox" checked={form.payAtLabEnabled} onChange={(event) => set('payAtLabEnabled', event.target.checked)} className="size-4 accent-[#20A99C]" /> Pay at laboratory</label>
-          <label className="flex items-center gap-2"><input type="checkbox" checked={form.payAtHomeEnabled} onChange={(event) => set('payAtHomeEnabled', event.target.checked)} className="size-4 accent-[#20A99C]" /> Pay at collection</label>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          {([
+            ['collectionEnabled', 'Home collection enabled'],
+            ['payOnlineEnabled', 'Online payment'],
+            ['payAtLabEnabled', 'Pay at laboratory'],
+            ['payAtHomeEnabled', 'Pay at collection'],
+          ] as const).map(([key, label]) => (
+            <label key={key} className="flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-[12.5px] transition hover:bg-surface">
+              <input type="checkbox" checked={form[key]} onChange={(event) => set(key, event.target.checked)} className="size-4 accent-[#00B98B]" /> {label}
+            </label>
+          ))}
         </div>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <Field label="Patient consent text" id="s-ptext"><textarea id="s-ptext" rows={3} className="input" value={form.patientConsentText} onChange={(event) => set('patientConsentText', event.target.value)} /></Field>
-          <Field label="Booking terms text" id="s-bterms"><textarea id="s-bterms" rows={3} className="input" value={form.bookingTermsText} onChange={(event) => set('bookingTermsText', event.target.value)} /></Field>
+          <Field label="Patient consent text" id="s-ptext"><textarea id="s-ptext" rows={4} className="input" value={form.patientConsentText} onChange={(event) => set('patientConsentText', event.target.value)} /></Field>
+          <Field label="Booking terms text" id="s-bterms"><textarea id="s-bterms" rows={4} className="input" value={form.bookingTermsText} onChange={(event) => set('bookingTermsText', event.target.value)} /></Field>
         </div>
-      </section>
+      </SettingsSection>
 
-      <div className="flex justify-end">
-        <button type="button" onClick={save} disabled={busy} className="btn btn-primary">{busy ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <Save size={15} aria-hidden />} Save settings</button>
+      {/* Sticky save bar so the primary action is always reachable on long forms. */}
+      <div className="sticky bottom-0 z-20 -mx-4 flex flex-wrap items-center justify-between gap-2 border-t border-line bg-white/95 px-4 py-3 backdrop-blur-xl sm:-mx-6 sm:px-6">
+        <p className="text-[11.5px] text-muted">Changes go live on the public website as soon as you save.</p>
+        <button type="button" onClick={save} disabled={busy} className="btn btn-primary">
+          {busy ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <Save size={15} aria-hidden />} Save settings
+        </button>
       </div>
 
       <AccountSection user={user} admins={resource.data?.admins ?? []} onChanged={resource.reload} onToast={onToast} />
     </div>
+  )
+}
+
+/** Logo and favicon upload with live preview and a reset to the built-in mark. */
+function BrandAssets({ form, onToast, onChanged }: {
+  form: SettingsResponse['settings']
+  onToast: (text: string, tone?: 'success' | 'error') => void
+  onChanged: (settings: Partial<SettingsResponse['settings']>) => void
+}) {
+  const [busy, setBusy] = useState<'logo' | 'favicon' | null>(null)
+  const logoInput = useRef<HTMLInputElement>(null)
+  const faviconInput = useRef<HTMLInputElement>(null)
+
+  const upload = async (kind: 'logo' | 'favicon', file: File | undefined) => {
+    if (!file) return
+    setBusy(kind)
+    const body = new FormData()
+    body.append('kind', kind)
+    body.append('file', file)
+    const result = await adminFetch<{ url: string; settings: Partial<SettingsResponse['settings']> }>('/api/admin/settings/brand', { method: 'POST', formData: body })
+    setBusy(null)
+    if (!result.ok) { onToast(result.error, 'error'); return }
+    onChanged(result.data.settings)
+    onToast(`${kind === 'logo' ? 'Logo' : 'Favicon'} updated — refresh the site to see it.`)
+  }
+
+  const reset = async (kind: 'logo' | 'favicon') => {
+    setBusy(kind)
+    const result = await adminFetch<{ settings: Partial<SettingsResponse['settings']> }>(`/api/admin/settings/brand?kind=${kind}`, { method: 'DELETE' })
+    setBusy(null)
+    if (!result.ok) { onToast(result.error, 'error'); return }
+    onChanged(result.data.settings)
+    onToast(`${kind === 'logo' ? 'Logo' : 'Favicon'} reset to the built-in mark.`)
+  }
+
+  return (
+    <section className="card overflow-hidden p-0">
+      <div className="border-b border-line-soft bg-surface px-4 py-3 sm:px-5">
+        <h2 className="flex items-center gap-2 text-[13.5px] font-bold"><ImageIcon size={15} className="text-green" aria-hidden /> Logo &amp; favicon</h2>
+        <p className="mt-0.5 text-[11.5px] text-muted">Replace the built-in orange-and-green mark. PNG, JPG, WebP, SVG or ICO up to 1.5 MB.</p>
+      </div>
+      <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-5">
+        <AssetTile
+          label="Logo" hint="Shown in the header and footer." ratio="square" url={form.logoUrl}
+          busy={busy === 'logo'} onPick={() => logoInput.current?.click()} onReset={() => reset('logo')}
+          resetDisabled={!form.logoUrl}
+        />
+        <AssetTile
+          label="Favicon" hint="Browser tab icon. Square images work best." ratio="wide" url={form.faviconUrl}
+          busy={busy === 'favicon'} onPick={() => faviconInput.current?.click()} onReset={() => reset('favicon')}
+          resetDisabled={!form.faviconUrl}
+        />
+      </div>
+      <input ref={logoInput} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="hidden" onChange={(event) => { void upload('logo', event.target.files?.[0]); event.target.value = '' }} />
+      <input ref={faviconInput} type="file" accept="image/png,image/x-icon,image/svg+xml,image/webp" className="hidden" onChange={(event) => { void upload('favicon', event.target.files?.[0]); event.target.value = '' }} />
+    </section>
+  )
+}
+
+function AssetTile({ label, hint, ratio, url, busy, onPick, onReset, resetDisabled }: {
+  label: string; hint: string; ratio: 'square' | 'wide'; url: string; busy: boolean
+  onPick: () => void; onReset: () => void; resetDisabled: boolean
+}) {
+  return (
+    <div className="rounded-xl border border-line p-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <b className="block text-[12.5px] font-semibold text-forest">{label}</b>
+          <span className="text-[11px] text-muted">{hint}</span>
+        </div>
+        {resetDisabled ? <span className="badge badge-gray shrink-0">Default</span> : <span className="badge badge-teal shrink-0">Custom</span>}
+      </div>
+
+      <div className={`mt-2.5 grid place-items-center overflow-hidden rounded-lg border border-dashed border-line bg-surface ${ratio === 'square' ? 'h-24' : 'h-24'}`}>
+        {url ? (
+          // eslint-disable-next-line @next/next/no-img-element -- admin previews are user uploads of any size
+          <img src={url} alt={`${label} preview`} className={ratio === 'square' ? 'max-h-16 w-auto object-contain' : 'size-12 object-contain'} />
+        ) : (
+          <span className="text-[11px] text-muted">No custom {label.toLowerCase()}</span>
+        )}
+      </div>
+
+      <div className="mt-2.5 flex gap-2">
+        <button type="button" onClick={onPick} disabled={busy} className="btn btn-outline btn-sm flex-1">
+          {busy ? <Loader2 size={13} className="animate-spin" aria-hidden /> : <Upload size={13} aria-hidden />} Upload
+        </button>
+        <button type="button" onClick={onReset} disabled={busy || resetDisabled} className="btn btn-ghost btn-sm" aria-label={`Reset ${label} to default`}>
+          <RotateCcw size={13} aria-hidden /> Reset
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function SettingsSection({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
+  return (
+    <section className="card overflow-hidden p-0">
+      <div className="border-b border-line-soft bg-surface px-4 py-3 sm:px-5">
+        <h2 className="text-[13.5px] font-bold">{title}</h2>
+        {description && <p className="mt-0.5 text-[11.5px] text-muted">{description}</p>}
+      </div>
+      <div className="p-4 sm:p-5">{children}</div>
+    </section>
   )
 }
 
@@ -161,6 +278,6 @@ function AccountSection({ user, admins, onChanged, onToast }: { user: AdminUser;
   )
 }
 
-function Field({ label, id, children }: { label: string; id: string; children: React.ReactNode }) {
-  return <div><label htmlFor={id} className="label">{label}</label>{children}</div>
+function Field({ label, id, hint, children }: { label: string; id: string; hint?: string; children: React.ReactNode }) {
+  return <div className="min-w-0"><label htmlFor={id} className="label">{label}</label>{children}{hint && <p className="mt-1 text-[11px] leading-4 text-muted">{hint}</p>}</div>
 }

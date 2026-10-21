@@ -84,7 +84,7 @@ export function PackagesPanel({ onToast }: { onToast: (text: string, tone?: 'suc
           <article key={pack.id} className="card flex flex-col p-4">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <h2 className="truncate text-[14px] font-bold text-navy">{pack.name}</h2>
+                <h2 className="line-clamp-2 text-[13.5px] font-bold leading-snug text-forest">{pack.name}</h2>
                 <p className="text-[11.5px] text-muted">{pack.testCount} tests · tests worth {formatINR(pack.testsSumPaise)}</p>
               </div>
               <span className={`badge ${pack.status === 'published' ? 'badge-green' : pack.status === 'draft' ? 'badge-amber' : 'badge-gray'}`}>{pack.status}</span>

@@ -151,8 +151,12 @@ export function BookingsPanel({ initial, onToast }: { initial: unknown; onToast:
   )
 }
 
+interface BookingItem { kind: string; name: string; unitPricePaise: number; quantity: number }
+
 interface Detail {
   booking: BookingRow & { age: number | null; gender: string | null; addressLine: string; addressArea: string; pincode: string; areaName: string | null; subtotalPaise: number; discountPaise: number; collectionFeePaise: number; internalNotes: string; cancellationReason: string; consentAccepted: boolean; updatedAt: string }
+  /** Line items are returned alongside the booking, not nested inside it. */
+  items: BookingItem[]
   events: Array<{ kind: string; message: string; actor: string; at: string }>
   payments: Array<{ providerOrderId: string; providerPaymentId: string | null; amountPaise: number; status: string; method: string; createdAt: string }>
   notifications: Array<{ channel: string; recipient: string; template: string; status: string; detail: string; at: string }>
@@ -242,7 +246,8 @@ function BookingDrawer({ id, onClose, onChanged, onToast }: { id: string; onClos
             <section>
               <h3 className="text-[12px] font-bold uppercase tracking-wide text-muted">Tests &amp; amounts</h3>
               <ul className="mt-1.5 divide-y divide-line text-[12.5px]">
-                {detail.booking.items.map((item) => <li key={item.name} className="flex justify-between gap-2 py-1.5"><span>{item.name}{item.quantity > 1 ? ` × ${item.quantity}` : ''}</span><span className="tabular-nums">{formatINR(item.unitPricePaise * item.quantity)}</span></li>)}
+                {(detail.items ?? []).map((item) => <li key={`${item.kind}-${item.name}`} className="flex justify-between gap-2 py-1.5"><span>{item.name}{item.quantity > 1 ? ` × ${item.quantity}` : ''}</span><span className="tabular-nums">{formatINR(item.unitPricePaise * item.quantity)}</span></li>)}
+                {(detail.items ?? []).length === 0 && <li className="py-1.5 text-muted">No line items recorded for this booking.</li>}
               </ul>
               <dl className="mt-1 space-y-0.5 border-t border-line pt-1.5 text-[12.5px]">
                 {detail.booking.discountPaise > 0 && <div className="flex justify-between"><dt className="text-muted">Discount</dt><dd className="text-success">− {formatINR(detail.booking.discountPaise)}</dd></div>}
