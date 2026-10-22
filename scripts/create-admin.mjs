@@ -34,7 +34,7 @@ const password = args.password ?? ''
 const role = args.role === 'admin' ? 'admin' : 'owner'
 
 if (!email || password.length < 10) {
-  console.error('Usage: node scripts/create-admin.mjs --email you@example.com --password "<10+ characters>" [--name "Name"] [--role admin|owner]')
+  console.error('Usage: node scripts/create-admin.mjs --email admin@gmail.com --password "Unik@1902" [--name "Name"] [--role admin|owner]')
   process.exit(1)
 }
 
