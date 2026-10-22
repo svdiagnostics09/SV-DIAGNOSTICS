@@ -5,6 +5,7 @@ import { hashPassword, verifyPassword } from '@/lib/auth'
 import { one, sql } from '@/lib/db'
 import { getSettings, publicSettings, saveSettings, settingsSchema } from '@/lib/settings'
 import { emailSchema, firstIssue } from '@/lib/validation'
+import { whatsappConfigured } from '@/lib/notify'
 import { z, ZodError } from 'zod'
 
 export const dynamic = 'force-dynamic'
@@ -17,8 +18,16 @@ export async function GET(request: Request) {
       'SELECT id, email, name, role, is_active, last_login_at FROM users ORDER BY created_at',
     )
     return Response.json({
-      settings: publicSettings(settings),
-      internal: { bookingHorizonDays: settings.bookingHorizonDays, slotHoldMinutes: settings.slotHoldMinutes },
+      // The report-delivery preferences are admin-only, so they are appended to
+      // the public shape rather than added to `publicSettings`.
+      settings: {
+        ...publicSettings(settings),
+        whatsappReportsEnabled: settings.whatsappReportsEnabled,
+        whatsappTemplateName: settings.whatsappTemplateName,
+        whatsappTemplateLanguage: settings.whatsappTemplateLanguage,
+        whatsappTemplateParam: settings.whatsappTemplateParam,
+      },
+      internal: { bookingHorizonDays: settings.bookingHorizonDays, slotHoldMinutes: settings.slotHoldMinutes, whatsappConfigured: whatsappConfigured() },
       admins: admins.map((row) => ({ id: row.id, email: row.email, name: row.name, role: row.role, isActive: row.is_active, lastLoginAt: row.last_login_at ? new Date(row.last_login_at).toISOString() : null })),
     })
   } catch (error) {

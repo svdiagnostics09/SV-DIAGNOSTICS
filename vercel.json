@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "regions": [
+    "bom1"
+  ],
+  "functions": {
+    "app/api/admin/reports/patients/route.ts": {
+      "maxDuration": 60
+    }
+  }
+}

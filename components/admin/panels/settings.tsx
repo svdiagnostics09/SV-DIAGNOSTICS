@@ -12,8 +12,9 @@ interface SettingsResponse {
     collectionFeePaise: number; bookingHorizonDays: number; slotHoldMinutes: number; payOnlineEnabled: boolean; payAtLabEnabled: boolean
     payAtHomeEnabled: boolean; cancellationWindowHours: number; consentVersion: string; patientConsentText: string; bookingTermsText: string
     city: string; state: string; logoUrl: string; faviconUrl: string
+    whatsappReportsEnabled: boolean; whatsappTemplateName: string; whatsappTemplateLanguage: string; whatsappTemplateParam: string
   }
-  internal: { bookingHorizonDays: number; slotHoldMinutes: number }
+  internal: { bookingHorizonDays: number; slotHoldMinutes: number; whatsappConfigured: boolean }
   admins: Array<{ id: string; email: string; name: string; role: string; isActive: boolean; lastLoginAt: string | null }>
 }
 
@@ -75,6 +76,8 @@ export function SettingsPanel({ user, onToast }: { user: AdminUser; onToast: (te
         <Field label="About text" id="s-about"><textarea id="s-about" rows={5} className="input" value={form.aboutText} onChange={(event) => set('aboutText', event.target.value)} /></Field>
       </SettingsSection>
 
+      <WhatsappSection form={form} configured={resource.data?.internal.whatsappConfigured ?? false} set={set} />
+
       <SettingsSection title="Bookings &amp; payments" description="Operational limits. Changing these affects new bookings immediately.">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <Field label="Home collection fee (₹)" id="s-fee"><input id="s-fee" className="input" inputMode="decimal" value={String(form.collectionFeePaise / 100)} onChange={(event) => set('collectionFeePaise', Math.round(Number(event.target.value.replace(/[^\d.]/g, '') || 0) * 100))} /></Field>
@@ -111,6 +114,35 @@ export function SettingsPanel({ user, onToast }: { user: AdminUser; onToast: (te
 
       <AccountSection user={user} admins={resource.data?.admins ?? []} onChanged={resource.reload} onToast={onToast} />
     </div>
+  )
+}
+
+/** WhatsApp Cloud API details used when a report is sent from Patient Reports. */
+function WhatsappSection({ form, configured, set }: {
+  form: SettingsResponse['settings']
+  configured: boolean
+  set: <K extends keyof SettingsResponse['settings']>(key: K, value: SettingsResponse['settings'][K]) => void
+}) {
+  return (
+    <SettingsSection title="WhatsApp report delivery" description="Reports are sent only when an administrator clicks “Send on WhatsApp” under Patient Reports. Nothing is sent automatically.">
+      <div className={`mb-3 flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-[12px] ${configured ? 'border-[#a7e8df] bg-mint-50 text-mint-700' : 'border-[#fde68a] bg-[#fffbeb] text-[#92400e]'}`}>
+        {configured
+          ? <>WhatsApp Cloud API credentials found on the server {form.whatsappTemplateName ? `· template “${form.whatsappTemplateName}”` : '· plain-text messages (works within 24h of the patient messaging you)'}</>
+          : <>WHATSAPP_TOKEN and WHATSAPP_PHONE_NUMBER_ID are not set on the server, so “Send on WhatsApp” will report a failure instead of sending.</>}
+      </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Field label="Meta template name" id="s-wa-template" hint="Empty = plain text message. Templates are required outside the 24-hour window.">
+          <input id="s-wa-template" className="input" placeholder="patient_report" value={form.whatsappTemplateName} onChange={(event) => set('whatsappTemplateName', event.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))} />
+        </Field>
+        <Field label="Template language" id="s-wa-lang" hint="The code shown in Meta, e.g. en or en_US.">
+          <input id="s-wa-lang" className="input" value={form.whatsappTemplateLanguage} onChange={(event) => set('whatsappTemplateLanguage', event.target.value.replace(/[^a-z_]/g, ''))} />
+        </Field>
+        <Field label="Template parameter" id="s-wa-param" hint="Used only with a template. {name} is replaced by the patient name.">
+          <input id="s-wa-param" className="input" value={form.whatsappTemplateParam} onChange={(event) => set('whatsappTemplateParam', event.target.value)} />
+        </Field>
+      </div>
+      <label className="mt-3 flex items-center gap-2 text-[12.5px]"><input type="checkbox" checked={form.whatsappReportsEnabled} onChange={(event) => set("whatsappReportsEnabled", event.target.checked)} className="size-4 accent-[#00B98B]" /> Allow WhatsApp report sending from the admin panel</label>
+    </SettingsSection>
   )
 }
 

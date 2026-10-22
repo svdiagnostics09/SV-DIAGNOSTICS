@@ -50,6 +50,9 @@ npm run admin:create -- --email owner@svdiagnostics.in --name "Owner" --password
 | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` | for online payment | Server-side order creation + checkout signature checks |
 | `RAZORPAY_WEBHOOK_SECRET` | for webhooks | HMAC verification of `/api/payments/webhook` |
 | `RESEND_API_KEY`, `EMAIL_FROM`, `STAFF_EMAIL` | optional | Transactional email + staff alerts |
+| `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` | for WhatsApp reports | Meta WhatsApp Cloud API credentials (server-only) |
+| `WHATSAPP_TEMPLATE_NAME`, `WHATSAPP_API_VERSION` | optional | Pin the template / Graph version instead of the Business settings values |
+| `NEXT_PUBLIC_SITE_URL` | recommended | Absolute origin used in the patient report link (e.g. `https://svdiagnostics.in`) |
 | `IP_HASH_SALT` | optional | Salt for hashed client identifiers in consent records |
 | `DATABASE_POOL_SIZE` | optional | Pool size (default 5, suitable for Neon pooled connections) |
 
@@ -106,7 +109,31 @@ enquiries, banners, faqs, blog_posts, business_settings, login_attempts.
   require an access token (or an authenticated admin). Confirmation pages are `noindex`.
 - Audit log records sign-ins, catalogue changes, booking status changes, refunds and settings updates.
 
-## 6. Testing
+## 6. Patient reports on WhatsApp
+
+**Admin → Operations → Patient Reports.** One row per booking, with the current
+report, its last WhatsApp attempt and three actions:
+
+1. **Upload PDF** — stored in Postgres (`patient_reports.content`), so every
+   serverless instance sees the same file. Only PDFs pass (checked by file
+   signature, max 20 MB). Uploading a new version revokes the previous link.
+2. **Send on WhatsApp** — never automatic. The send is logged in
+   `report_deliveries` with Meta's message id, or the exact error Meta returned.
+3. **History** — every version, download count and delivery attempt; a different
+   mobile number can be used for one send without changing the booking.
+
+The patient gets a private link (`/api/reports/download?token=…`, 32 random
+bytes, revocable) and can also open the report from **Track booking** after
+entering the reference *and* registered mobile number.
+
+Configure it at Meta for Developers → WhatsApp → API Setup, then set
+`WHATSAPP_TOKEN` and `WHATSAPP_PHONE_NUMBER_ID` on the host. The default template
+`patient_report` needs three body parameters — `{{1}}` patient name, `{{2}}`
+booking reference, `{{3}}` report link. Plain text (no template) only works
+within 24 hours of the patient messaging you; templates work any time. Set the
+template name under **Business settings → WhatsApp report delivery**.
+
+## 7. Testing
 
 ```bash
 npm run dev                     # in one terminal
@@ -120,7 +147,7 @@ duplicates, concurrent capacity enforcement, cancellation capacity release, trac
 illegal status jumps, webhook/checkout signature rejection, enquiry validation and archiving.
 It creates and removes its own fixtures. See `TEST_REPORT.md` for the latest run.
 
-## 7. Deployment
+## 8. Deployment
 
 1. Create a Neon project; copy the **pooled** connection string.
 2. Set all environment variables in your host (Vercel: Project → Settings → Environment Variables).
@@ -131,16 +158,45 @@ It creates and removes its own fixtures. See `TEST_REPORT.md` for the latest run
 5. Serve over HTTPS (`Secure` cookies are on in production) and verify `/admin/login` works with
    the owner account.
 
-## 8. Layout
+### Vercel (recommended)
+
+`vercel.json` pins the Node framework and the `bom1` region, and gives the
+report-upload route 60 seconds.
+
+```bash
+npx vercel link                     # link this folder to the Vercel project
+# Add every variable from .env.example under Project → Settings → Environment Variables
+DATABASE_URL="postgres://…" ADMIN_EMAIL=… ADMIN_PASSWORD=… npm run db:migrate
+npx vercel --prod
+```
+
+Migrations are **not** run by the build — run `db:migrate` once per schema change
+against the production `DATABASE_URL` (step 3). Then set `NEXT_PUBLIC_SITE_URL`
+to the production domain and redeploy so WhatsApp links use it.
+
+> Brand logo uploads still write to `public/uploads/brand` (local disk). On a
+> read-only/serverless host that folder does not persist across deployments —
+> upload the logo once after each deploy, or host it and paste a URL. Patient
+> report PDFs are **not** affected: they live in Postgres.
+
+### Self-hosted (Node / Docker / Render / Railway)
+
+The app needs Node 22+ and one long-running process; no filesystem writes are
+required for anything except the brand logo.
+
+```bash
+npm ci && npm run build && npm run db:migrate && npm start
+```
+
+## 9. Layout
 
 ```
 app/                 routes (public pages, admin page, API route handlers)
 components/site/     public UI (header/footer, cards, booking wizard, tracking, forms)
 components/admin/    console shell + panels (dashboard, tests, bookings, settings…)
-lib/                 db, auth, validation, catalogue, network, booking, payments, content, audit
+lib/                 db, auth, validation, catalogue, network, booking, payments, content, audit,
+                     notify (email + WhatsApp), reports (patient report PDFs)
 db/                  schema.ts (Drizzle), migrations, migrate runner
 scripts/             test-api.mjs, create-admin.mjs, data/seed-catalogue.mjs (optional)
 ```
-# SV-DIAGNOSTICS
-# SV-DIAGNOSTICS
-# SV-DIAGNOSTICS
+

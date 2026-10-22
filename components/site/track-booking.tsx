@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { CalendarCheck, CheckCircle2, Clock3, FileText, Loader2, Search, XCircle } from 'lucide-react'
+import { ArrowUpRight, CalendarCheck, CheckCircle2, Clock3, FileDown, FileText, Loader2, Search, XCircle } from 'lucide-react'
 import type { TrackingResult } from '@/lib/booking'
 import { formatINR, formatIndiaTime } from '@/lib/format'
 
@@ -88,6 +88,21 @@ export function TrackBooking({ initialReference, cancellationWindowHours }: { in
               <p className="text-[11.5px] capitalize text-muted">Payment: {booking.paymentStatus} ({booking.paymentMethod.replace('_', ' ')})</p>
             </div>
           </div>
+
+          {booking.report && (
+            <div className="flex flex-col gap-3 border-b border-line bg-mint-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-2.5">
+                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-white text-mint-700"><FileDown size={17} aria-hidden /></span>
+                <div className="min-w-0">
+                  <b className="block text-[13px] font-semibold text-forest">Your report is ready</b>
+                  <span className="block truncate text-[11.5px] text-muted">{booking.report.fileName} · uploaded {formatIndiaTime(booking.report.uploadedAt, { day: 'numeric', month: 'short' })}</span>
+                </div>
+              </div>
+              <a href={booking.report.downloadUrl} className="btn btn-primary btn-sm shrink-0" target="_blank" rel="noopener noreferrer">
+                <FileDown size={14} aria-hidden /> Download PDF <ArrowUpRight size={13} aria-hidden />
+              </a>
+            </div>
+          )}
 
           <div className="p-5">
             {booking.status === 'cancelled' ? (

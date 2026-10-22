@@ -39,11 +39,21 @@ export const DEFAULT_SETTINGS = {
   /** Empty = use the built-in mark. Set from Admin → Business settings. */
   logoUrl: '',
   faviconUrl: '',
+  /**
+   * WhatsApp report delivery (Meta WhatsApp Cloud API). A staff member always
+   * clicks “Send on WhatsApp” — reports are never sent automatically. Empty
+   * template name = send plain text (works inside a 24h customer window).
+   */
+  whatsappReportsEnabled: true,
+  whatsappTemplateName: '',
+  whatsappTemplateLanguage: 'en',
+  /** Optional first parameter for a custom template; {name} → patient name. */
+  whatsappTemplateParam: '{name}',
 }
 
 type SettingsShape = typeof DEFAULT_SETTINGS
 
-export type BusinessSettings = { [K in keyof SettingsShape]: K extends 'announcementEnabled' | 'collectionEnabled' | 'payOnlineEnabled' | 'payAtLabEnabled' | 'payAtHomeEnabled' ? boolean : K extends 'collectionFeePaise' | 'bookingHorizonDays' | 'slotHoldMinutes' | 'cancellationWindowHours' ? number : string }
+export type BusinessSettings = { [K in keyof SettingsShape]: K extends 'announcementEnabled' | 'collectionEnabled' | 'payOnlineEnabled' | 'payAtLabEnabled' | 'payAtHomeEnabled' | 'whatsappReportsEnabled' ? boolean : K extends 'collectionFeePaise' | 'bookingHorizonDays' | 'slotHoldMinutes' | 'cancellationWindowHours' ? number : string }
 
 export const settingsSchema = z.object({
   brandName: z.string().trim().min(2).max(80),
@@ -72,6 +82,10 @@ export const settingsSchema = z.object({
   /** Stored as a path under /uploads/brand/* or an absolute https URL. */
   logoUrl: z.union([z.literal(''), z.string().trim().max(500)]).optional(),
   faviconUrl: z.union([z.literal(''), z.string().trim().max(500)]).optional(),
+  whatsappReportsEnabled: z.boolean(),
+  whatsappTemplateName: z.string().trim().regex(/^[a-z0-9_]{0,256}$/, 'Use lowercase letters, numbers and underscores (the name shown in Meta).'),
+  whatsappTemplateLanguage: z.string().trim().regex(/^[a-z]{2}(_[A-Z]{2})?$/, 'Use a language code such as en or en_US.'),
+  whatsappTemplateParam: z.string().trim().max(200),
 })
 
 export async function getSettings(): Promise<BusinessSettings> {

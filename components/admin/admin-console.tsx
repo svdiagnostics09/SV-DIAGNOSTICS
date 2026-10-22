@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import {
   CalendarDays,
   Contact,
+  FileDown,
   FileText,
   Inbox,
   Image as ImageIcon,
@@ -35,6 +36,7 @@ import { LocationsPanel, ServiceAreasPanel, SlotsPanel } from '@/components/admi
 import { PaymentsPanel, ReportsPanel, AuditPanel } from '@/components/admin/panels/reports'
 import { SettingsPanel } from '@/components/admin/panels/settings'
 import { CustomersPanel } from '@/components/admin/panels/customers'
+import { PatientReportsPanel } from '@/components/admin/panels/patient-reports'
 
 const TITLES: Record<string, { title: string; description: string }> = {
   dashboard: { title: 'Dashboard', description: 'Live figures from the laboratory database' },
@@ -48,6 +50,7 @@ const TITLES: Record<string, { title: string; description: string }> = {
   bookings: { title: 'Bookings', description: 'Search, confirm and update patient bookings' },
   enquiries: { title: 'Enquiries', description: 'Messages submitted from the contact form' },
   customers: { title: 'Customers & Patients', description: 'Restricted view of patient booking history' },
+  'patient-reports': { title: 'Patient Reports', description: 'Upload report PDFs and send them to patients on WhatsApp' },
   payments: { title: 'Payments & Refunds', description: 'Payment attempts and refund records' },
   reports: { title: 'Reports', description: 'Operational and revenue summaries' },
   locations: { title: 'Locations', description: 'Laboratory branches and opening hours' },
@@ -81,6 +84,7 @@ export function AdminConsole({ user, dashboard, bookings }: { user: AdminUser; d
     {
       label: 'Operations', items: [
         { key: 'bookings', label: 'Bookings', icon: CalendarDays },
+        { key: 'patient-reports', label: 'Patient Reports', icon: FileDown },
         { key: 'enquiries', label: 'Enquiries', icon: Inbox },
         { key: 'customers', label: 'Customers', icon: Contact },
       ]
@@ -143,6 +147,7 @@ export function AdminConsole({ user, dashboard, bookings }: { user: AdminUser; d
           {active === 'bookings' && <BookingsPanel initial={bookings} onToast={toasts.push} />}
           {active === 'enquiries' && <EnquiriesPanel onToast={toasts.push} />}
           {active === 'customers' && <CustomersPanel />}
+          {active === 'patient-reports' && <PatientReportsPanel onToast={toasts.push} />}
           {active === 'payments' && <PaymentsPanel />}
           {active === 'reports' && <ReportsPanel />}
           {active === 'locations' && <LocationsPanel onToast={toasts.push} />}

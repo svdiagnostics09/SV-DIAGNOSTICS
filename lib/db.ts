@@ -13,6 +13,13 @@ import * as schema from '@/db/schema'
  * where a query is clearer written out (aggregates, vendor-agnostic upserts).
  */
 
+/**
+ * Optional driver override. Points every query at a Postgres-compatible server
+ * over HTTP (e.g. a local test harness); production always uses the pg Pool.
+ * Format: postgresql+http://host:port/database
+ */
+const HTTP_DRIVER = (process.env.DATABASE_URL ?? '').startsWith('postgresql+http://')
+
 const globalForDb = globalThis as typeof globalThis & {
   __svPool?: Pool
   __svDb?: ReturnType<typeof drizzle<typeof schema>>
@@ -30,6 +37,11 @@ export function dbConfigured() {
 
 export function pool(): Pool {
   if (globalForDb.__svPool) return globalForDb.__svPool
+  if (HTTP_DRIVER) {
+    // Test harness only — matches the subset of the Pool API our helpers use.
+    globalForDb.__svPool = new HttpQueryable(connectionString()) as unknown as Pool
+    return globalForDb.__svPool
+  }
   const p = new Pool({
     connectionString: connectionString(),
     max: Number(process.env.DATABASE_POOL_SIZE ?? 5),
@@ -45,16 +57,63 @@ export function pool(): Pool {
 
 export const db = () => (globalForDb.__svDb ??= drizzle(pool(), { schema }))
 
+/**
+ * Minimal pg-Pool look-alike over Postgres' HTTP API. Used only when
+ * DATABASE_URL uses the postgresql+http:// scheme (local verification).
+ * Postgres collects parameter type OIDs from the extended-protocol Parse
+ * message, so TEXT-format parameter values are accepted as typed as long as
+ * they are unambiguous (see docs: "Rendering conventions for text format").
+ */
+class HttpQueryable {
+  private endpoint: string
+  constructor(private url: string) {
+    const parsed = new URL(url.replace(/^postgresql\+http:/, 'http:'))
+    const database = decodeURIComponent(parsed.pathname.replace(/^\//, '')) || 'postgres'
+    this.endpoint = `${parsed.origin}/sql/${encodeURIComponent(database)}`
+  }
+  async query(text: string, values: unknown[] = []): Promise<{ rows: Array<Record<string, unknown>>; rowCount: number }> {
+    const query = { text, params: values.map((value) => (Buffer.isBuffer(value) ? `\\x${value.toString('hex')}` : value)) }
+    const response = await fetch(`${this.endpoint}?format=arrays`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify([query]),
+      cache: 'no-store',
+    })
+    const payload = await response.json().catch(() => null) as { result?: Array<{ cols?: Array<{ name: string }>; rows?: unknown[][]; rowCount?: number }>; error?: string } | null
+    if (!response.ok || !payload?.result) throw new Error(`http-sql ${response.status}: ${payload?.error ?? 'no result'}`)
+    const result = payload.result[0]
+    const names = (result?.cols ?? []).map((column) => column.name)
+    const rows = (result?.rows ?? []).map((row) => {
+      const object: Record<string, unknown> = {}
+      names.forEach((name, index) => { object[name] = row[index] })
+      return object
+    })
+    return { rows, rowCount: result?.rowCount ?? rows.length }
+  }
+  async connect() {
+    const client = this
+    return { query: (text: string, values?: unknown[]) => client.query(text, values), release: () => undefined }
+  }
+  on() { return this }
+}
+
 /** Run a parameterised query and return rows. */
 const DATE_COLUMNS = new Set(['slot_date', 'appointment_date', 'day', 'blackout_date', 'date'])
+/** Columns stored as bytea. pg hands them back as "\x…" hex strings. */
+const BLOB_COLUMNS = new Set(['content'])
 
-/** pg returns DATE as a JS Date in local time; we normalise to YYYY-MM-DD strings. */
-function normaliseDates(row: Record<string, unknown>): Record<string, unknown> {
+/**
+ * pg returns DATE as a JS Date in local time and bytea (report PDFs) as
+ * hex-encoded text. Normalise dates to YYYY-MM-DD and decode blobs to Buffers.
+ */
+function normaliseRow(row: Record<string, unknown>): Record<string, unknown> {
   const copy: Record<string, unknown> = { ...row }
   for (const key of Object.keys(copy)) {
     const value = copy[key]
     if (value instanceof Date && DATE_COLUMNS.has(key)) {
       copy[key] = new Intl.DateTimeFormat('en-CA', { timeZone: IST, year: 'numeric', month: '2-digit', day: '2-digit' }).format(value)
+    } else if (typeof value === 'string' && BLOB_COLUMNS.has(key)) {
+      copy[key] = Buffer.from(value, 'hex')
     }
   }
   return copy
@@ -65,7 +124,7 @@ export async function sql<T extends Record<string, unknown> = Record<string, unk
   values: unknown[] = [],
 ): Promise<T[]> {
   const result = await pool().query(text, values as unknown[])
-  return result.rows.map((row) => normaliseDates(row)) as T[]
+  return result.rows.map((row) => normaliseRow(row)) as T[]
 }
 
 export async function one<T extends Record<string, unknown> = Record<string, unknown>>(

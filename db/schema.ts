@@ -1,5 +1,6 @@
 import {
   boolean,
+  customType,
   date,
   index,
   integer,
@@ -307,6 +308,37 @@ export const auditLogs = pgTable('audit_logs', {
   detail: jsonb('detail').notNull().default({}),
   createdAt: now(),
 })
+
+export const patientReports = pgTable('patient_reports', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  bookingId: uuid('booking_id').notNull().references(() => bookings.id, { onDelete: 'cascade' }),
+  fileName: text('file_name').notNull(),
+  mimeType: text('mime_type').notNull().default('application/pdf'),
+  sizeBytes: integer('size_bytes').notNull(),
+  content: customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => 'bytea' })('content').notNull(),
+  sha256: text('sha256').notNull(),
+  accessToken: text('access_token').notNull().unique(),
+  uploadedBy: uuid('uploaded_by').references(() => users.id, { onDelete: 'set null' }),
+  uploadedByEmail: text('uploaded_by_email').notNull().default(''),
+  createdAt: now(),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  downloads: integer('downloads').notNull().default(0),
+  lastDownloadedAt: timestamp('last_downloaded_at', { withTimezone: true }),
+}, (t) => ({ booking: index('patient_reports_booking_idx').on(t.bookingId, t.createdAt) }))
+
+export const reportDeliveries = pgTable('report_deliveries', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  reportId: uuid('report_id').notNull().references(() => patientReports.id, { onDelete: 'cascade' }),
+  bookingId: uuid('booking_id').notNull().references(() => bookings.id, { onDelete: 'cascade' }),
+  channel: text('channel').notNull().default('whatsapp'),
+  recipient: text('recipient').notNull().default(''),
+  template: text('template').notNull().default('patient_report'),
+  status: text('status').notNull(),
+  providerMessageId: text('provider_message_id'),
+  detail: text('detail').notNull().default(''),
+  actorEmail: text('actor_email').notNull().default(''),
+  createdAt: now(),
+}, (t) => ({ report: index('report_deliveries_report_idx').on(t.reportId, t.createdAt) }))
 
 export const notifications = pgTable('notifications', {
   id: uuid('id').primaryKey().defaultRandom(),

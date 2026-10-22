@@ -38,6 +38,7 @@ export interface AdminBooking {
   internalNotes: string
   createdAt: string
   items: Array<{ name: string; kind: string; unitPricePaise: number; quantity: number }>
+  report: { id: string; fileName: string; sizeBytes: number; createdAt: string; downloads: number; lastDelivery: { status: string; createdAt: string } | null } | null
   events: Array<{ kind: string; message: string; actor: string; at: string }>
   payments: Array<{ providerOrderId: string; providerPaymentId: string | null; amountPaise: number; status: string; method: string }>
 }
@@ -68,7 +69,24 @@ export async function listBookings(query: { q?: string; status?: string; method?
     values,
   )
   const ids = rows.map((row) => String(row.id))
-  const items = ids.length ? await sql<Record<string, unknown>>('SELECT * FROM booking_items WHERE booking_id = ANY($1::uuid[])', [ids]) : []
+  const [items, reports, deliveries] = ids.length
+    ? await Promise.all([
+        sql<Record<string, unknown>>('SELECT * FROM booking_items WHERE booking_id = ANY($1::uuid[])', [ids]),
+        sql<Record<string, unknown>>(
+          `SELECT DISTINCT ON (booking_id) id, booking_id, file_name, size_bytes, created_at, downloads
+           FROM patient_reports WHERE booking_id = ANY($1::uuid[]) AND revoked_at IS NULL
+           ORDER BY booking_id, created_at DESC`,
+          [ids],
+        ),
+        sql<Record<string, unknown>>(
+          `SELECT DISTINCT ON (booking_id) booking_id, status, created_at
+           FROM report_deliveries WHERE booking_id = ANY($1::uuid[]) AND channel = 'whatsapp'
+           ORDER BY booking_id, created_at DESC`,
+          [ids],
+        ),
+      ])
+    : [[], [], []]
+  const deliveryByBooking = new Map(deliveries.map((row) => [String(row.booking_id), row]))
   return {
     total: count?.total ?? 0,
     page,
@@ -100,6 +118,19 @@ export async function listBookings(query: { q?: string; status?: string; method?
       internalNotes: String(row.internal_notes ?? ''),
       createdAt: new Date(row.created_at as string).toISOString(),
       items: items.filter((item) => item.booking_id === row.id).map((item) => ({ name: String(item.name_snapshot), kind: String(item.kind), unitPricePaise: Number(item.unit_price_paise), quantity: Number(item.quantity) })),
+      report: (() => {
+        const report = reports.find((item) => item.booking_id === row.id)
+        if (!report) return null
+        const delivery = deliveryByBooking.get(String(row.id))
+        return {
+          id: String(report.id),
+          fileName: String(report.file_name),
+          sizeBytes: Number(report.size_bytes),
+          createdAt: new Date(report.created_at as string).toISOString(),
+          downloads: Number(report.downloads),
+          lastDelivery: delivery ? { status: String(delivery.status), createdAt: new Date(delivery.created_at as string).toISOString() } : null,
+        }
+      })(),
       events: [],
       payments: [],
     })),

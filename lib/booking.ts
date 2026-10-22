@@ -466,6 +466,8 @@ export interface TrackingResult {
   createdAt: string
   items: Array<{ name: string; quantity: number; unitPricePaise: number }>
   timeline: Array<{ message: string; at: string; actor: string }>
+  /** Live report PDF, present only after an administrator uploads it. */
+  report: { fileName: string; uploadedAt: string; downloadUrl: string } | null
 }
 
 /** Requires BOTH the random reference and the registered phone number. */
@@ -476,10 +478,16 @@ export async function trackBooking(reference: string, phone: string): Promise<Tr
     'SELECT name_snapshot, quantity, unit_price_paise FROM booking_items WHERE booking_id = $1 ORDER BY name_snapshot',
     [row.id],
   )
-  const timeline = await sql<{ message: string; created_at: Date; actor: string }>(
-    'SELECT message, created_at, actor FROM booking_events WHERE booking_id = $1 ORDER BY created_at',
-    [row.id],
-  )
+  const [timeline, report] = await Promise.all([
+    sql<{ message: string; created_at: Date; actor: string }>(
+      'SELECT message, created_at, actor FROM booking_events WHERE booking_id = $1 ORDER BY created_at',
+      [row.id],
+    ),
+    one<{ file_name: string; created_at: Date; access_token: string }>(
+      'SELECT file_name, created_at, access_token FROM patient_reports WHERE booking_id = $1 AND revoked_at IS NULL',
+      [row.id],
+    ),
+  ])
   return {
     reference: String(row.reference),
     status: row.status as BookingStatus,
@@ -493,6 +501,9 @@ export async function trackBooking(reference: string, phone: string): Promise<Tr
     createdAt: new Date(row.created_at as string).toISOString(),
     items: items.map((item) => ({ name: item.name_snapshot, quantity: Number(item.quantity), unitPricePaise: Number(item.unit_price_paise) })),
     timeline: timeline.map((event) => ({ message: event.message, at: new Date(event.created_at).toISOString(), actor: event.actor })),
+    report: report
+      ? { fileName: report.file_name, uploadedAt: new Date(report.created_at).toISOString(), downloadUrl: `/api/reports/download?token=${encodeURIComponent(report.access_token)}` }
+      : null,
   }
 }
 
