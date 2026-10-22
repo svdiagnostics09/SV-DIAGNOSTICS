@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { CalendarCheck, ClipboardList, Home, MapPin, ShieldCheck, Stethoscope, Truck, UserCheck } from 'lucide-react'
-import { listLocations } from '@/lib/network'
 import { siteShell } from '@/lib/page-data'
 import { SiteShell } from '@/components/site/site-shell'
 import { PageHeader, IconTile } from '@/components/ui'
@@ -11,7 +10,7 @@ export const metadata: Metadata = { title: 'Home Sample Collection', description
 export const revalidate = 60
 
 export default async function HomeCollectionPage() {
-  const [{ settings, areas }, locations] = await Promise.all([siteShell(), listLocations()])
+  const { settings, areas, locations } = await siteShell()
   const active = areas.filter((area) => area.homeCollection)
 
   return (

@@ -29,7 +29,12 @@ if (!url) {
   process.exit(1)
 }
 
-const client = new pg.Client({ connectionString: url, ssl: /sslmode=disable/.test(url) ? undefined : { rejectUnauthorized: false } })
+// SSL is decided by the explicit option, not the URL's sslmode (see lib/db.ts):
+// pg 8 warns that `sslmode=require` will change meaning in pg 9.
+const client = new pg.Client({
+  connectionString: url.replace(/([?&])sslmode=[^&]*&?/g, '$1').replace(/[?&]$/, '').replace(/([?&])&+/g, '$1'),
+  ssl: /sslmode=disable/.test(url) ? undefined : { rejectUnauthorized: false },
+})
 await client.connect()
 
 await client.query(`CREATE TABLE IF NOT EXISTS schema_migrations (name text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())`)

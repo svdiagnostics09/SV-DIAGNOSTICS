@@ -13,7 +13,7 @@ interface DashboardData {
   recentBookings: Array<{ id: string; reference: string; patientName: string; date: string; slot: string; totalPaise: number; status: string; paymentStatus: string; method: string; createdAt: string }>
   recentEnquiries: Array<{ id: string; reference: string; name: string; subject: string; message: string; status: string; createdAt: string }>
   recentAudit: Array<{ id: number; actor: string; action: string; entity: string; at: string }>
-  integrations: { razorpay: { configured: boolean; webhookConfigured: boolean; mode: string }; email: boolean; database: string }
+  integrations: { email: boolean; whatsapp: boolean; database: string }
   generatedAt: string
 }
 
@@ -138,12 +138,8 @@ export function DashboardPanel({ initial, onOpen }: { initial: Record<string, un
               <h2 className="text-[13.5px] font-bold">Integration status</h2>
               <ul className="mt-2 space-y-2 text-[12.5px]">
                 <li className="flex items-center justify-between gap-2 border-b border-line pb-2">
-                  <span className="flex items-center gap-2"><Wallet size={14} className="text-teal-700" aria-hidden /> Razorpay</span>
-                  <span className={`badge ${data.integrations.razorpay.configured ? 'badge-green' : 'badge-amber'}`}>{data.integrations.razorpay.configured ? `Configured (${data.integrations.razorpay.mode})` : 'Not configured'}</span>
-                </li>
-                <li className="flex items-center justify-between gap-2 border-b border-line pb-2">
-                  <span className="flex items-center gap-2"><ShieldCog /> Webhooks</span>
-                  <span className={`badge ${data.integrations.razorpay.webhookConfigured ? 'badge-green' : 'badge-amber'}`}>{data.integrations.razorpay.webhookConfigured ? 'Secret set' : 'Secret missing'}</span>
+                  <span className="flex items-center gap-2"><FileText size={14} className="text-teal-700" aria-hidden /> WhatsApp reports</span>
+                  <span className={`badge ${data.integrations.whatsapp ? 'badge-green' : 'badge-amber'}`}>{data.integrations.whatsapp ? 'Configured' : 'Not configured'}</span>
                 </li>
                 <li className="flex items-center justify-between gap-2 border-b border-line pb-2">
                   <span className="flex items-center gap-2"><FileText size={14} className="text-teal-700" aria-hidden /> Email provider</span>

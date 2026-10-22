@@ -11,7 +11,7 @@ import { Overlay } from '@/components/storefront/overlay'
 
 /** Product quick-view dialog shared by every card and search result. */
 export function ProductDetailsModal() {
-  const { product, closeProduct, openBooking } = useStoreUI()
+  const { product, closeProduct } = useStoreUI()
   const cart = useCart()
   const inCart = product ? cart.has(product.kind, product.id) : false
   const off = product ? discountPercent(product) : 0
@@ -77,7 +77,13 @@ export function ProductDetailsModal() {
             >
               {inCart ? <><Check size={15} aria-hidden /> Added to cart</> : <><Plus size={15} aria-hidden /> Add to Cart</>}
             </button>
-            <button type="button" onClick={() => openBooking(product)} className="btn btn-navy">Book this now</button>
+            <Link
+              href={product.kind === 'package' ? `/book?package=${product.id}` : `/book?test=${product.id}`}
+              onClick={closeProduct}
+              className="btn btn-navy"
+            >
+              Book this now
+            </Link>
             <Link
               href={product.kind === 'package' ? `/packages/${product.slug}` : `/tests/${product.slug}`}
               onClick={closeProduct}

@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'node:crypto'
+import { createHash } from 'node:crypto'
 import { one, sql } from '@/lib/db'
 
 /**
@@ -8,11 +8,11 @@ import { one, sql } from '@/lib/db'
  * serverless instance serves the same bytes — writing to `public/uploads` would
  * vanish when the function scales out or a container is recycled.
  *
- * Files are reached in two ways:
- *   1. Administrator (session cookie)  → /api/admin/reports/file?id=…
- *   2. Patient link (random token)     → /api/reports/download?token=…
- * The token is revoked automatically when a newer report replaces the booking's
- * report, so a link already forwarded on WhatsApp stops resolving.
+ * There is no public download link. Files are reached in exactly two places,
+ * both behind an administrator session:
+ *   1. Upload / view / history  → /api/admin/reports/patients
+ *   2. Staff hand the report to the patient with the explicit
+ *      “Send on WhatsApp” action, which logs every attempt in report_deliveries.
  */
 
 /** Meta's media limit is 100 MB; 20 MB is plenty for a scanned report. */
@@ -23,10 +23,6 @@ export const REPORT_MIME = 'application/pdf'
 /** `%PDF-` must be the first bytes — a renamed .docx or image is not a report. */
 export function looksLikePdf(bytes: Uint8Array): boolean {
   return bytes.length > 1024 && bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46 && bytes[4] === 0x2d
-}
-
-export function newReportToken(): string {
-  return randomBytes(32).toString('base64url')
 }
 
 export const sha256 = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex')
@@ -78,17 +74,17 @@ export async function saveReport(input: {
   bytes: Uint8Array
   actorId: string
   actorEmail: string
-}): Promise<{ id: string; accessToken: string; fileName: string }> {
+}): Promise<{ id: string; fileName: string }> {
   await sql('UPDATE patient_reports SET revoked_at = now() WHERE booking_id = $1 AND revoked_at IS NULL', [input.bookingId])
   const address = Buffer.from(input.bytes)
-  const row = await one<{ id: string; access_token: string; file_name: string }>(
-    `INSERT INTO patient_reports (booking_id, file_name, mime_type, size_bytes, content, sha256, access_token, uploaded_by, uploaded_by_email)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-     RETURNING id, access_token, file_name`,
-    [input.bookingId, input.fileName, REPORT_MIME, address.length, address, sha256(input.bytes), newReportToken(), input.actorId, input.actorEmail],
+  const row = await one<{ id: string; file_name: string }>(
+    `INSERT INTO patient_reports (booking_id, file_name, mime_type, size_bytes, content, sha256, uploaded_by, uploaded_by_email)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     RETURNING id, file_name`,
+    [input.bookingId, input.fileName, REPORT_MIME, address.length, address, sha256(input.bytes), input.actorId, input.actorEmail],
   )
   if (!row) throw new Error('The report could not be saved.')
-  return { id: row.id, accessToken: row.access_token, fileName: row.file_name }
+  return { id: row.id, fileName: row.file_name }
 }
 
 /** Live reports for the given bookings, newest first (bytes are not loaded). */
@@ -151,10 +147,10 @@ export async function reportDetailForBooking(bookingId: string) {
   }
 }
 
-/** Live report id for a booking (used before a send). */
+/** Live report row for a booking (id + file name, used before a send). */
 export async function liveReport(bookingId: string) {
-  return one<{ id: string; file_name: string; access_token: string; size_bytes: number }>(
-    `SELECT id, file_name, access_token, size_bytes FROM patient_reports WHERE booking_id = $1 AND revoked_at IS NULL`,
+  return one<{ id: string; file_name: string; size_bytes: number }>(
+    `SELECT id, file_name, size_bytes FROM patient_reports WHERE booking_id = $1 AND revoked_at IS NULL`,
     [bookingId],
   )
 }
@@ -179,27 +175,7 @@ export async function recordDelivery(input: {
   )
 }
 
-/**
- * Resolve a download token. Returns the file bytes for a live report only.
- * Rows are counted as a download here because this is the only patient path.
- */
-export async function downloadByToken(token: string) {
-  const row = await one<Record<string, unknown>>(
-    `SELECT r.id, r.file_name, r.mime_type, r.content, r.booking_id
-     FROM patient_reports r
-     WHERE r.access_token = $1 AND r.revoked_at IS NULL`,
-    [token],
-  )
-  if (!row) return null
-  await sql('UPDATE patient_reports SET downloads = downloads + 1, last_downloaded_at = now() WHERE id = $1', [String(row.id)])
-  return {
-    fileName: String(row.file_name),
-    mimeType: String(row.mime_type ?? REPORT_MIME),
-    content: row.content as Buffer,
-  }
-}
-
-/** Administrator download by report id. */
+/** Administrator download by report id (the only way to fetch the bytes). */
 export async function downloadById(id: string) {
   const row = await one<Record<string, unknown>>(
     `SELECT file_name, mime_type, content FROM patient_reports WHERE id = $1`,

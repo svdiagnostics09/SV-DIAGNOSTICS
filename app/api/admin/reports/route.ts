@@ -1,14 +1,13 @@
 import { guard, jsonError } from '@/lib/auth'
 import { one, sql } from '@/lib/db'
-import { listPaymentsForAdmin, publicPaymentStatus } from '@/lib/payments'
 
 export const dynamic = 'force-dynamic'
 
-/** Reports + payments screen data. All figures derive from bookings/payments. */
+/** Reports screen data. All figures derive from bookings. */
 export async function GET(request: Request) {
   try {
     await guard(request)
-    const [summary, byStatus, byMethod, topTests, daily, payments, refundsResult] = await Promise.all([
+    const [summary, byStatus, byMethod, topTests, daily, refundsResult] = await Promise.all([
       one<Record<string, number>>(`SELECT
         count(*)::int AS bookings,
         count(*) FILTER (WHERE status <> 'cancelled')::int AS active_bookings,
@@ -25,7 +24,6 @@ export async function GET(request: Request) {
         FROM booking_items bi JOIN bookings b ON b.id = bi.booking_id WHERE b.status <> 'cancelled' GROUP BY name_snapshot ORDER BY n DESC LIMIT 10`),
       sql<{ day: string; n: number; value: unknown }>(`SELECT appointment_date::text AS day, count(*)::int AS n, COALESCE(sum(total_paise),0) AS value
         FROM bookings WHERE appointment_date BETWEEN CURRENT_DATE - 13 AND CURRENT_DATE + 7 AND status <> 'cancelled' GROUP BY appointment_date ORDER BY appointment_date`),
-      listPaymentsForAdmin(100),
       one<{ n: number }>(`SELECT count(*)::int AS n FROM bookings WHERE payment_status = 'refunded'`),
     ])
     return Response.json({
@@ -34,9 +32,7 @@ export async function GET(request: Request) {
       byMethod: byMethod.map((row) => ({ method: row.payment_method, count: Number(row.n) })),
       topTests: topTests.map((row) => ({ name: row.name, count: Number(row.n), revenuePaise: Number(row.revenue) })),
       daily: daily.map((row) => ({ day: String(row.day).slice(0, 10), count: Number(row.n), valuePaise: Number(row.value) })),
-      payments,
-      refundCount: Number(refundsResult?.n ?? 0),
-      razorpay: publicPaymentStatus(),
+      payments: [],
     })
   } catch (error) {
     return jsonError(error)

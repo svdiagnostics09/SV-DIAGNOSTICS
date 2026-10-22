@@ -1,8 +1,7 @@
 import { guard, jsonError } from '@/lib/auth'
 import { one, sql } from '@/lib/db'
 import { listAuditLogs } from '@/lib/audit'
-import { emailConfigured } from '@/lib/notify'
-import { publicPaymentStatus } from '@/lib/payments'
+import { emailConfigured, whatsappConfigured } from '@/lib/notify'
 
 export const dynamic = 'force-dynamic'
 
@@ -58,8 +57,8 @@ export async function GET(request: Request) {
       })),
       recentAudit: recentAudit,
       integrations: {
-        razorpay: publicPaymentStatus(),
         email: emailConfigured(),
+        whatsapp: whatsappConfigured(),
         database: 'connected',
       },
       notificationsSent: Number(notif?.n ?? 0),

@@ -119,7 +119,7 @@ export interface CreateBookingInput {
   patientGender?: 'male' | 'female' | 'other' | null
   phone: string
   email?: string | null
-  paymentMethod: 'online' | 'pay_lab' | 'pay_home'
+  paymentMethod: 'pay_lab' | 'pay_home'
   consentAccepted: boolean
   idempotencyKey?: string | null
   ipHash?: string
@@ -135,7 +135,7 @@ export interface CreatedBooking {
   discountPaise: number
   collectionFeePaise: number
   status: BookingStatus
-  paymentMethod: 'online' | 'pay_lab' | 'pay_home'
+  paymentMethod: 'pay_lab' | 'pay_home'
   paymentStatus: string
   holdExpiresAt: string | null
 }
@@ -245,8 +245,8 @@ export async function createBooking(input: CreateBookingInput): Promise<CreatedB
 
   if (input.paymentMethod === 'pay_home' && (input.method !== 'home' || !settings.payAtHomeEnabled)) throw new BookingError(400, 'Pay at collection is not available for this booking.')
   if (input.paymentMethod === 'pay_lab' && (input.method !== 'lab' || !settings.payAtLabEnabled)) throw new BookingError(400, 'Pay at laboratory is not available for this booking.')
-  if (input.paymentMethod === 'online' && !settings.payOnlineEnabled) throw new BookingError(400, 'Online payment is currently unavailable.')
 
+  if (input.paymentMethod === 'pay_home' && (input.method !== 'home' || !settings.payAtHomeEnabled)) throw new BookingError(400, 'Pay at collection is not available for this booking.')
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const reference = newReference()
     try {
@@ -466,8 +466,8 @@ export interface TrackingResult {
   createdAt: string
   items: Array<{ name: string; quantity: number; unitPricePaise: number }>
   timeline: Array<{ message: string; at: string; actor: string }>
-  /** Live report PDF, present only after an administrator uploads it. */
-  report: { fileName: string; uploadedAt: string; downloadUrl: string } | null
+  /** Report metadata only — the PDF itself is sent on WhatsApp by staff. */
+  report: { fileName: string; uploadedAt: string } | null
 }
 
 /** Requires BOTH the random reference and the registered phone number. */
@@ -483,8 +483,8 @@ export async function trackBooking(reference: string, phone: string): Promise<Tr
       'SELECT message, created_at, actor FROM booking_events WHERE booking_id = $1 ORDER BY created_at',
       [row.id],
     ),
-    one<{ file_name: string; created_at: Date; access_token: string }>(
-      'SELECT file_name, created_at, access_token FROM patient_reports WHERE booking_id = $1 AND revoked_at IS NULL',
+    one<{ file_name: string; created_at: Date }>(
+      'SELECT file_name, created_at FROM patient_reports WHERE booking_id = $1 AND revoked_at IS NULL',
       [row.id],
     ),
   ])
@@ -502,7 +502,7 @@ export async function trackBooking(reference: string, phone: string): Promise<Tr
     items: items.map((item) => ({ name: item.name_snapshot, quantity: Number(item.quantity), unitPricePaise: Number(item.unit_price_paise) })),
     timeline: timeline.map((event) => ({ message: event.message, at: new Date(event.created_at).toISOString(), actor: event.actor })),
     report: report
-      ? { fileName: report.file_name, uploadedAt: new Date(report.created_at).toISOString(), downloadUrl: `/api/reports/download?token=${encodeURIComponent(report.access_token)}` }
+      ? { fileName: report.file_name, uploadedAt: new Date(report.created_at).toISOString() }
       : null,
   }
 }

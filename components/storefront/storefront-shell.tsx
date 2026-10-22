@@ -5,13 +5,12 @@ import { StoreHeader } from '@/components/storefront/header'
 import { StoreFooter } from '@/components/storefront/footer'
 import { CartDrawer } from '@/components/storefront/cart-drawer'
 import { ProductDetailsModal } from '@/components/storefront/product-details-modal'
-import { BookingModal } from '@/components/storefront/booking-modal'
 import { FloatingSupportButton } from '@/components/storefront/floating-support'
 import type { PublicSettings } from '@/lib/settings'
 
 /**
  * Storefront shell: providers, sticky header, page content, footer and the
- * three global overlays (cart drawer, product details, demo booking).
+ * three global overlays (cart drawer, product details, support button).
  */
 export function StorefrontShell({ settings, children }: { settings: PublicSettings; children: React.ReactNode }) {
   return (
@@ -26,7 +25,6 @@ export function StorefrontShell({ settings, children }: { settings: PublicSettin
           <StoreFooter settings={settings} />
           <CartDrawer />
           <ProductDetailsModal />
-          <BookingModal />
           <FloatingSupportButton supportPhone={settings.supportPhone} />
         </StoreUIProvider>
       </CartProvider>

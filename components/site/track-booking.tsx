@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowUpRight, CalendarCheck, CheckCircle2, Clock3, FileDown, FileText, Loader2, Search, XCircle } from 'lucide-react'
+import { CalendarCheck, CheckCircle2, Clock3, FileDown, FileText, Loader2, Search, XCircle } from 'lucide-react'
 import type { TrackingResult } from '@/lib/booking'
 import { formatINR, formatIndiaTime } from '@/lib/format'
 
@@ -96,11 +96,9 @@ export function TrackBooking({ initialReference, cancellationWindowHours }: { in
                 <div className="min-w-0">
                   <b className="block text-[13px] font-semibold text-forest">Your report is ready</b>
                   <span className="block truncate text-[11.5px] text-muted">{booking.report.fileName} · uploaded {formatIndiaTime(booking.report.uploadedAt, { day: 'numeric', month: 'short' })}</span>
+                  <span className="mt-0.5 block text-[11.5px] text-muted">Our staff send this to you on WhatsApp. If you have not received it, call the laboratory with your reference.</span>
                 </div>
               </div>
-              <a href={booking.report.downloadUrl} className="btn btn-primary btn-sm shrink-0" target="_blank" rel="noopener noreferrer">
-                <FileDown size={14} aria-hidden /> Download PDF <ArrowUpRight size={13} aria-hidden />
-              </a>
             </div>
           )}
 

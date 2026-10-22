@@ -173,11 +173,13 @@ const bookingBody = (overrides = {}) => ({
   const skip = await json('/api/admin/bookings', { method: 'PATCH', body: JSON.stringify({ id: bookingId, action: 'status', status: 'report_ready' }) }, cookie)
   check('illegal status jump is rejected', skip.status === 409, JSON.stringify(skip.body))
 
-  /* ---- 8. Payment webhook signature --------------------------------- */
-  const webhook = await fetch(`${BASE}/api/payments/webhook`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-razorpay-signature': 'invalid' }, body: JSON.stringify({ event: 'payment.captured', payload: {} }) })
-  check('webhook rejects an invalid signature', webhook.status === 401)
-  const verify = await json('/api/payments/verify', { method: 'POST', body: JSON.stringify({ razorpay_order_id: 'order_x', razorpay_payment_id: 'pay_x', razorpay_signature: 'bad', reference, accessToken: 'bad' }) })
-  check('checkout verification rejects a bad signature', verify.status === 404 || verify.status === 400)
+  /* ---- 8. Online payment and report links are gone ------------------ */
+  const webhook = await fetch(`${BASE}/api/payments/webhook`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: 'payment.captured', payload: {} }) })
+  check('removed online-payment webhook endpoint is not served', webhook.status === 404, `got ${webhook.status}`)
+  const onlineBooking = await json('/api/bookings', { method: 'POST', body: JSON.stringify(bookingBody({ date, paymentMethod: 'online' })) })
+  check('online payment is rejected as a booking method', onlineBooking.status === 400, `${onlineBooking.status} ${JSON.stringify(onlineBooking.body)}`)
+  const reportLink = await fetch(`${BASE}/api/reports/download?token=${'x'.repeat(43)}`)
+  check('public report download link no longer exists', reportLink.status === 404, `got ${reportLink.status}`)
 
   /* ---- 9. Enquiries ------------------------------------------------- */
   const enquiry = await json('/api/enquiries', { method: 'POST', body: JSON.stringify({ name: 'QA Enquiry', phone: '9876500009', subject: 'QA', message: 'Automated test enquiry — please ignore.' }) })

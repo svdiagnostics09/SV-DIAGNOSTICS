@@ -2,14 +2,12 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  AlertTriangle,
   ChevronDown,
   FileText,
   Loader2,
   RefreshCw,
   Search,
   Send,
-  Trash2,
   Upload,
 } from 'lucide-react'
 import { adminFetch, useAdminResource } from '@/components/admin/fetch'
@@ -30,7 +28,6 @@ interface ReportRow {
     fileName: string
     sizeBytes: number
     createdAt: string
-    downloads: number
     lastDelivery: { status: string; createdAt: string; recipient: string } | null
   } | null
 }
@@ -42,12 +39,33 @@ interface ListData {
 }
 
 interface DetailData {
-  reports: Array<{ id: string; fileName: string; sizeBytes: number; createdAt: string; revokedAt: string | null; downloads: number; lastDownloadedAt: string | null; uploadedBy: string }>
+  reference: string
+  bookedPhone: string
+  reports: Array<{ id: string; fileName: string; sizeBytes: number; createdAt: string; revokedAt: string | null; uploadedBy: string }>
   deliveries: Array<{ id: string; status: 'sent' | 'failed' | 'skipped'; recipient: string; detail: string; providerMessageId: string | null; actor: string; createdAt: string }>
   whatsappConfigured: boolean
 }
-
 const MAX_BYTES = 20 * 1024 * 1024
+
+/**
+ * Build a wa.me link for an Indian mobile number. Returns null when the number
+ * cannot be turned into country code + digits. wa.me works on phones (opens the
+ * app) and on desktop (opens WhatsApp Web), so the administrator sends the PDF
+ * from their own WhatsApp — the server never messages anyone.
+ */
+function whatsappChatUrl(phone: string, text: string): string | null {
+  const digits = (phone ?? '').replace(/\D/g, '')
+  const withCountry = /^[6-9]\d{9}$/.test(digits) ? `91${digits}` : /^91[6-9]\d{9}$/.test(digits) ? digits : /^\d{10,15}$/.test(digits) ? digits : null
+  if (!withCountry) return null
+  return `https://wa.me/${withCountry}?text=${encodeURIComponent(text)}`
+}
+
+function openWhatsappChat(phone: string, text: string): boolean {
+  const url = whatsappChatUrl(phone, text)
+  if (!url) return false
+  window.open(url, '_blank', 'noopener,noreferrer')
+  return true
+}
 
 const STATUS_LABEL: Record<string, string> = {
   pending_confirmation: 'Pending', confirmed: 'Confirmed', collection_scheduled: 'Scheduled', sample_collected: 'Collected',
@@ -118,14 +136,15 @@ export function PatientReportsPanel({ onToast }: { onToast: (text: string, tone?
 
   const send = async (row: ReportRow) => {
     if (!row.report) { onToast('Upload the PDF first.', 'error'); return }
+    // Opens WhatsApp (app on mobile, WhatsApp Web on desktop) on the patient's
+    // chat. Nothing is sent by us: the administrator attaches the PDF and
+    // presses send themselves. The attempt is logged so the console shows it.
+    const opened = openWhatsappChat(row.phone, `Hello ${row.patientName}, your ${row.report.fileName} report for booking ${row.reference} is ready. Please find the PDF attached.`)
+    if (!opened) { onToast('The booking has no usable mobile number for WhatsApp.', 'error'); return }
     setSending(row.bookingId)
-    // A warning the sender cannot miss: this goes to a real patient's phone.
-    if (!window.confirm(`Send ${row.report.fileName} to ${row.patientName} on WhatsApp (${row.phone})?`)) { setSending(null); return }
-    const result = await adminFetch<{ status: string; detail: string; recipient: string }>('/api/admin/reports/patients?action=send', { method: 'POST', body: { bookingId: row.bookingId } })
+    await adminFetch('/api/admin/reports/patients?action=opened', { method: 'POST', body: { bookingId: row.bookingId } }).catch(() => undefined)
     setSending(null)
-    if (!result.ok) { onToast(result.error, 'error'); resource.reload(); return }
-    if (result.data.status === 'sent') onToast(`Sent on WhatsApp to ${result.data.recipient}.`)
-    else onToast(`Not sent — ${result.data.detail}`, 'error')
+    onToast(`WhatsApp opened for ${row.patientName}. Attach the PDF and press send.`)
     resource.reload()
   }
 
@@ -139,17 +158,13 @@ export function PatientReportsPanel({ onToast }: { onToast: (text: string, tone?
         onChange={(event) => { void upload(event.target.files?.[0]) }}
       />
 
-      <section className={`card flex flex-wrap items-start justify-between gap-3 p-4 ${data && !data.whatsapp.configured ? 'border-[#fde68a]' : ''}`}>
+      <section className="card flex flex-wrap items-start justify-between gap-3 p-4">
         <div className="flex items-start gap-2.5">
-          {data && !data.whatsapp.configured
-            ? <AlertTriangle size={18} className="mt-0.5 text-[#92400e]" aria-hidden />
-            : <Send size={18} className="mt-0.5 text-mint-700" aria-hidden />}
+          <Send size={18} className="mt-0.5 text-mint-700" aria-hidden />
           <div>
             <h2 className="text-[13.5px] font-bold">WhatsApp delivery</h2>
             <p className="max-w-2xl text-[12px] text-muted">
-              {data?.whatsapp.configured
-                ? 'Upload a PDF, then press Send on WhatsApp. The message carries a private download link the patient can open on any device.'
-                : 'WHATSAPP_TOKEN and WHATSAPP_PHONE_NUMBER_ID are not set on the server. Uploads still work; sending will report a failure until the credentials are added.'}
+              Upload a PDF, then press Send on WhatsApp — it opens the patient’s chat (wa.me) in a new tab so you can attach the PDF and press send yourself. Every attempt is logged here.
             </p>
           </div>
         </div>
@@ -217,7 +232,7 @@ export function PatientReportsPanel({ onToast }: { onToast: (text: string, tone?
                               <FileText size={13} aria-hidden /> {row.report.fileName}
                             </a>
                             <span className="block text-[10.5px] text-muted">
-                              {kb(row.report.sizeBytes)} · {formatIndiaTime(row.report.createdAt, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })} · {row.report.downloads} download{row.report.downloads === 1 ? '' : 's'}
+                              {kb(row.report.sizeBytes)} · {formatIndiaTime(row.report.createdAt, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
                               {row.versions > 1 ? ` · ${row.versions} versions` : ''}
                             </span>
                           </>
@@ -261,8 +276,8 @@ export function PatientReportsPanel({ onToast }: { onToast: (text: string, tone?
       </div>
 
       <p className="text-[11.5px] leading-5 text-muted">
-        Only PDFs are accepted (checked by file signature, max 20 MB). Replacing a report revokes the previous download link, so a link already sent stops working.
-        The patient can also open the report from <b>Track booking</b> using their reference and mobile number.
+        Only PDFs are accepted (checked by file signature, max 20 MB). Sending happens only when you press <b>Send on WhatsApp</b>, and every attempt is logged.
+        Patients cannot download reports from the website.
       </p>
     </div>
   )
@@ -292,22 +307,11 @@ function ReportHistory({ bookingId, canSend, onChanged, onToast }: {
 
   const load = useCallback(async () => {
     const result = await adminFetch<DetailData>(`/api/admin/reports/patients?bookingId=${bookingId}`)
-    if (!result.ok) { setError(result.error); return }
-    setDetail(result.data)
-  }, [bookingId])
-
-  useEffect(() => { void load() }, [load])
-
-  const revoke = async (reportId: string) => {
-    if (!window.confirm('Revoke this report? The download link already sent to the patient will stop working.')) return
-    setBusy(true)
-    const result = await adminFetch(`/api/admin/reports/patients?reportId=${reportId}&bookingId=${bookingId}`, { method: 'DELETE' })
-    setBusy(false)
-    if (!result.ok) { onToast(result.error, 'error'); return }
-    onToast('Report revoked.')
-    void load()
-    onChanged()
-  }
+      if (!result.ok) { setError(result.error); return }
+      setDetail(result.data)
+      setPhone((current) => current || result.data.bookedPhone)
+    }, [bookingId])
+    useEffect(() => { void load() }, [load])
 
   const uploadNew = async (file: File | undefined) => {
     if (!file) return
@@ -323,12 +327,16 @@ function ReportHistory({ bookingId, canSend, onChanged, onToast }: {
     onChanged()
   }
 
+  const bookedPhone = detail?.bookedPhone ?? ''
+
   const resend = async () => {
+    if (!detail) return
+    const opened = openWhatsappChat(phone.trim() || bookedPhone, `Hello, your report for booking ${detail.reference} is ready. Please find the PDF attached.`)
+    if (!opened) { onToast('Enter a mobile number with country code (e.g. 91…).', 'error'); return }
     setBusy(true)
-    const result = await adminFetch<{ status: string; detail: string }>('/api/admin/reports/patients?action=send', { method: 'POST', body: { bookingId, phone: phone.trim() || undefined } })
+    await adminFetch('/api/admin/reports/patients?action=opened', { method: 'POST', body: { bookingId } }).catch(() => undefined)
     setBusy(false)
-    if (!result.ok) { onToast(result.error, 'error'); void load(); return }
-    onToast(result.data.status === 'sent' ? 'Sent on WhatsApp.' : result.data.detail, result.data.status === 'sent' ? 'success' : 'error')
+    onToast('WhatsApp opened. Attach the PDF and press send.')
     void load()
     onChanged()
   }
@@ -348,12 +356,6 @@ function ReportHistory({ bookingId, canSend, onChanged, onToast }: {
               <a href={`/api/admin/reports/patients?file=${report.id}`} target="_blank" rel="noopener" className="font-medium text-teal-700 hover:underline">{report.fileName}</a>
               <span className="flex-1" />
               <span className="text-muted">{kb(report.sizeBytes)} · {formatIndiaTime(report.createdAt, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })} · by {report.uploadedBy || 'admin'}</span>
-              <span className="text-muted">{report.downloads} download{report.downloads === 1 ? '' : 's'}{report.lastDownloadedAt ? ` · last ${formatIndiaTime(report.lastDownloadedAt, { day: 'numeric', month: 'short' })}` : ''}</span>
-              {!report.revokedAt && (
-                <button type="button" onClick={() => revoke(report.id)} disabled={busy} className="ml-auto btn btn-ghost btn-sm text-danger" aria-label="Revoke report">
-                  <Trash2 size={13} aria-hidden /> Revoke
-                </button>
-              )}
             </li>
           ))}
         </ul>
@@ -365,7 +367,6 @@ function ReportHistory({ bookingId, canSend, onChanged, onToast }: {
 
       <div>
         <h3 className="mb-2 flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-wide text-muted"><Send size={13} aria-hidden /> WhatsApp attempts</h3>
-        {!detail.whatsappConfigured && <p className="mb-2 text-[11.5px] text-[#92400e]">Credentials missing on the server — attempts will be recorded as skipped or failed.</p>}
         {detail.deliveries.length === 0 && <p className="text-[12px] text-muted">Nothing has been sent for this booking yet.</p>}
         <ul className="max-h-52 space-y-1.5 overflow-y-auto">
           {detail.deliveries.map((delivery) => (
@@ -383,7 +384,7 @@ function ReportHistory({ bookingId, canSend, onChanged, onToast }: {
         {canSend && (
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <input value={phone} onChange={(event) => setPhone(event.target.value.replace(/[^\d+]/g, ''))} placeholder="Different number (optional)" className="input h-9 w-48 py-0 text-[12px]" inputMode="tel" aria-label="Send to a different mobile number" />
-            <button type="button" onClick={resend} disabled={busy} className="btn btn-mint btn-sm">{busy ? <Loader2 size={13} className="animate-spin" aria-hidden /> : <Send size={13} aria-hidden />} Send again</button>
+            <button type="button" onClick={resend} disabled={busy} className="btn btn-mint btn-sm">{busy ? <Loader2 size={13} className="animate-spin" aria-hidden /> : <Send size={13} aria-hidden />} Open WhatsApp</button>
           </div>
         )}
       </div>

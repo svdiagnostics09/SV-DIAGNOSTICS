@@ -1,18 +1,17 @@
 'use client'
 
 import Image from 'next/image'
+import Link from 'next/link'
 import { ArrowRight, Home as HomeIcon, ShieldCheck, Sparkles, Timer } from 'lucide-react'
 import { IMAGES } from '@/lib/storefront/content'
 import { formatINR } from '@/lib/format'
 import { useCity } from '@/components/storefront/city-provider'
-import { useStoreUI } from '@/components/storefront/ui-provider'
 
 /** Closing price of the hero offer, in paise. */
 const STARTING_PAISE = 159900
 
 export function HeroBanner({ startingPricePaise = STARTING_PAISE }: { startingPricePaise?: number }) {
   const { city } = useCity()
-  const { openBooking } = useStoreUI()
 
   return (
     <section className="container-x pt-5 sm:pt-7" aria-labelledby="hero-heading">
@@ -40,12 +39,12 @@ export function HeroBanner({ startingPricePaise = STARTING_PAISE }: { startingPr
             </div>
 
             <div className="mt-5 flex flex-wrap items-center gap-3">
-              <button type="button" onClick={() => openBooking(null)} className="btn btn-primary btn-lg">
+              <Link href="/book" className="btn btn-primary btn-lg">
                 Book Now <ArrowRight size={16} aria-hidden />
-              </button>
-              <a href="/packages" className="text-[13px] font-semibold text-forest underline-offset-4 hover:underline">
+              </Link>
+              <Link href="/packages" className="text-[13px] font-semibold text-forest underline-offset-4 hover:underline">
                 View all checkups
-              </a>
+              </Link>
             </div>
 
             <ul className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-[12px] font-medium text-ink/70">

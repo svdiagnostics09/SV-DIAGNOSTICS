@@ -6,7 +6,6 @@ import { one, sql } from '@/lib/db'
 import { listEnquiries } from '@/lib/content'
 import { listAuditLogs } from '@/lib/audit'
 import { BOOKING_STATUSES, STATUS_LABELS, transitionBooking, BookingError, type BookingStatus } from '@/lib/booking'
-import { recordManualRefund } from '@/lib/payments'
 import { firstIssue, emailSchema } from '@/lib/validation'
 import { sendStatusEmail } from '@/lib/notify'
 
@@ -165,7 +164,6 @@ const patchSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('cancel'), reason: z.string().trim().min(3, 'Give a cancellation reason.').max(300) }),
   z.object({ action: z.literal('notes'), notes: z.string().max(2000) }),
   z.object({ action: z.literal('email'), email: emailSchema }),
-  z.object({ action: z.literal('refund'), amountPaise: z.number().int().min(0).max(10_000_000), note: z.string().max(300).optional() }),
 ])
 
 export async function PATCH(request: Request) {
@@ -188,10 +186,6 @@ export async function PATCH(request: Request) {
     } else if (body.action === 'email') {
       await sql('UPDATE bookings SET email = $2, updated_at = now() WHERE id = $1', [body.id, body.email || null])
       await audit({ actor: admin, action: 'booking.email_update', entity: 'bookings', entityId: body.id, request })
-    } else if (body.action === 'refund') {
-      const result = await recordManualRefund(body.id, body.amountPaise, body.note ?? '', admin.email)
-      if (!result.ok) return Response.json({ error: result.error }, { status: 409 })
-      await audit({ actor: admin, action: 'booking.refund_recorded', entity: 'bookings', entityId: body.id, detail: { amountPaise: body.amountPaise }, request })
     }
 
     revalidatePath('/admin')

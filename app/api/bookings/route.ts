@@ -1,7 +1,6 @@
 import { createBooking, BookingError, priceCart, type CartItemInput } from '@/lib/booking'
 import { clientKey, ipHash, isRateLimited, recordAttempt } from '@/lib/auth'
 import { emailConfigured, sendBookingConfirmationEmail, notifyStaffEmail } from '@/lib/notify'
-import { createRazorpayOrder, publicPaymentStatus, razorpayConfigured } from '@/lib/payments'
 import { getSettings } from '@/lib/settings'
 import { emailSchema, firstIssue, nameSchema, parseJson, phoneSchema } from '@/lib/validation'
 import { z, ZodError } from 'zod'
@@ -27,8 +26,8 @@ const schema = z.object({
   patientGender: z.enum(['male', 'female', 'other']).nullable().optional(),
   phone: phoneSchema,
   email: emailSchema.optional().or(z.literal('')),
-  paymentMethod: z.enum(['online', 'pay_lab', 'pay_home']),
-  consent: z.literal(true).optional().refine((value) => value === true, { message: 'Please accept the patient consent and booking terms.' }),
+  paymentMethod: z.enum(['pay_lab', 'pay_home']),
+  consent: z.literal(true, { message: 'Please accept the patient consent and booking terms.' }),
   idempotencyKey: z.string().min(8).max(80).optional(),
   /** Honeypot */
   website: z.string().max(0).optional().or(z.literal('')),
@@ -80,33 +79,14 @@ export async function POST(request: Request) {
       bookingId: booking.id,
     }).catch((error) => console.error('[notify] staff alert failed', error))
 
-    let payment: { provider: string; orderId: string; amountPaise: number; keyId: string } | null = null
-    let paymentError: string | null = null
-    if (body.paymentMethod === 'online') {
-      if (!razorpayConfigured()) {
-        paymentError = 'Online payment is not configured. Your booking is saved — pay at collection or contact the laboratory.'
-      } else {
-        try {
-          const created = await createRazorpayOrder({ bookingId: booking.id, reference: booking.reference, amountPaise: booking.totalPaise, email: body.email || null, phone: body.phone })
-          payment = { provider: 'razorpay', ...created }
-        } catch (error) {
-          console.error('[payments] order creation failed', error)
-          paymentError = 'The payment could not be started. Your booking is saved — please retry payment or contact us.'
-        }
-      }
-    }
-
     return Response.json({
       reference: booking.reference,
       bookingId: booking.id,
       accessToken: booking.accessToken,
       totals: { subtotalPaise: booking.subtotalPaise, discountPaise: booking.discountPaise, collectionFeePaise: booking.collectionFeePaise, totalPaise: booking.totalPaise },
       status: booking.status,
-      payment,
-      paymentError,
       confirmationUrl: `/booking/confirmation/${booking.reference}?t=${encodeURIComponent(booking.accessToken)}`,
       emailConfigured: emailConfigured(),
-      paymentStatus: publicPaymentStatus(),
       settings: { brandName: settings.brandName, supportPhone: settings.supportPhone },
     }, { status: 201 })
   } catch (error) {

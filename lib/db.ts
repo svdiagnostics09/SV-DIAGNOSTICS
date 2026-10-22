@@ -31,6 +31,27 @@ export function connectionString() {
   return url
 }
 
+/**
+ * SSL mode is decided here, not by the `sslmode=` query parameter.
+ *
+ * pg 8 warns that `prefer`/`require`/`verify-ca` are treated as `verify-full`
+ * today but will mean weaker things in pg 9. Stripping the parameter and
+ * passing an explicit `ssl` option keeps the current behaviour, silent, and
+ * intentional: managed Postgres (Neon) uses a certificate we do not verify,
+ * while `sslmode=disable` (local Postgres) stays unencrypted.
+ */
+function poolConfig(url: string) {
+  const disableSsl = /[?&]sslmode=disable\b/.test(url)
+  const withoutSslMode = url
+    .replace(/([?&])sslmode=[^&]*&?/g, '$1')
+    .replace(/[?&]$/, '')
+    .replace(/([?&])&+/g, '$1')
+  return {
+    connectionString: withoutSslMode,
+    ssl: disableSsl ? undefined : { rejectUnauthorized: false },
+  }
+}
+
 export function dbConfigured() {
   return Boolean((process.env.DATABASE_URL ?? process.env.POSTGRES_URL ?? '').trim())
 }
@@ -43,9 +64,8 @@ export function pool(): Pool {
     return globalForDb.__svPool
   }
   const p = new Pool({
-    connectionString: connectionString(),
-    max: Number(process.env.DATABASE_POOL_SIZE ?? 5),
-    ssl: /sslmode=disable/.test(connectionString()) ? undefined : { rejectUnauthorized: false },
+    ...poolConfig(connectionString()),
+    max: Number(process.env.DATABASE_POOL_SIZE ?? 10),
     idleTimeoutMillis: 20_000,
     connectionTimeoutMillis: 15_000,
   })

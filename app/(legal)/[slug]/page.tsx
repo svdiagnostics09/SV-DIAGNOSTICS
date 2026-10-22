@@ -12,7 +12,7 @@ const PAGES = {
     sections: [
       { heading: 'Information we collect', body: 'Booking details (patient name, age, gender, mobile number, optional email, collection address and pincode), selected tests and packages, appointment slot, consent records, payment status and references, and enquiry messages. Administrator accounts store an email, display name and a salted password hash.' },
       { heading: 'How we use it', body: 'To schedule and deliver sample collection, calculate prices, process bookings, respond to enquiries, send booking notifications you request, and keep records required to operate a diagnostic laboratory.' },
-      { heading: 'Payments', body: 'Online payments are processed by Razorpay. Card and UPI details are entered in Razorpay’s interface and are never stored on our servers. We store only the payment order and payment identifiers needed to reconcile a booking.' },
+      { heading: 'Payments', body: 'Payment is made in person — to the home collection staff member or at the laboratory reception — when your sample is collected. No card or UPI details are collected through this website.' },
       { heading: 'Who can access your data', body: 'Authorised administrators can view bookings and enquiries to operate the laboratory. Access to patient records requires an authenticated session; every sensitive action is written to an audit log.' },
       { heading: 'Retention', body: 'Booking and consent records are retained while needed to provide the service and to satisfy applicable record-keeping obligations. Enquiries may be archived after they are resolved.' },
       { heading: 'Your choices', body: 'You can request access to, correction of, or deletion of your contact details where the law permits by contacting the laboratory. Some records must be retained for medical and legal reasons.' },
@@ -36,7 +36,7 @@ const PAGES = {
     intro: 'This policy explains how cancellations and refunds are handled for bookings made on this website.',
     sections: [
       { heading: 'Cancelling online', body: 'You can cancel through the booking tracking page within the cancellation window shown at checkout (by default 4 hours before the appointment), provided collection has not taken place. The slot is released back to capacity immediately.' },
-      { heading: 'Refunds for online payments', body: 'If you cancel an online-paid booking before collection, the refund is recorded against the booking. Refunds are issued to the original payment method through Razorpay and can take several business days to appear, depending on your bank.' },
+      { heading: 'Refunds', body: 'If you cancel a paid booking before collection, any amount paid is refunded at the laboratory or through the payment method used. Please keep your booking reference and payment receipt for this.' },
       { heading: 'Pay at collection / laboratory', body: 'Bookings paid at collection or at the laboratory have no amount to refund if collected. If a sample could not be collected, no charge applies for the visit.' },
       { heading: 'Cancellation by the laboratory', body: 'If we cannot complete a collection, we will offer a reschedule or a refund of any amount already paid for that booking.' },
       { heading: 'After collection', body: 'Once a sample has been collected and processing has begun, cancellation may not be possible. Contact the laboratory to discuss your options.' },

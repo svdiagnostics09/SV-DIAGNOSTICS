@@ -15,7 +15,6 @@ export default async function BookPage() {
       <Suspense fallback={<div className="container-x py-10"><div className="skeleton h-64 w-full" /></div>}>
         <BookingWizard
           config={{
-            payOnline: settings.payOnlineEnabled,
             payAtLab: settings.payAtLabEnabled,
             payAtHome: settings.payAtHomeEnabled,
             collectionEnabled: settings.collectionEnabled,

@@ -1,6 +1,6 @@
 'use client'
 
-import { AlertTriangle, ShieldCheck, Wallet } from 'lucide-react'
+import { ShieldCheck } from 'lucide-react'
 import { useAdminResource } from '@/components/admin/fetch'
 import { formatINR, formatIndiaTime } from '@/lib/format'
 import { EmptyState } from '@/components/ui'
@@ -11,9 +11,6 @@ interface ReportsData {
   byMethod: Array<{ method: string; count: number }>
   topTests: Array<{ name: string; count: number; revenuePaise: number }>
   daily: Array<{ day: string; count: number; valuePaise: number }>
-  payments: Array<{ id: string; reference: string; providerOrderId: string; providerPaymentId: string | null; amountPaise: number; status: string; method: string; createdAt: string }>
-  refundCount: number
-  razorpay: { configured: boolean; webhookConfigured: boolean; mode: string; keyId: string }
 }
 
 const LABEL: Record<string, string> = {
@@ -92,52 +89,6 @@ export function ReportsPanel() {
           </section>
         </>
       )}
-    </div>
-  )
-}
-
-export function PaymentsPanel() {
-  const resource = useAdminResource<ReportsData>('/api/admin/reports', { pollMs: 30_000 })
-  const data = resource.data
-
-  return (
-    <div className="space-y-4">
-      <section className={`card flex flex-wrap items-center justify-between gap-3 p-4 ${data && !data.razorpay.configured ? 'border-[#fde68a]' : ''}`}>
-        <div className="flex items-start gap-2.5">
-          {data && !data.razorpay.configured ? <AlertTriangle size={18} className="mt-0.5 text-[#92400e]" aria-hidden /> : <Wallet size={18} className="mt-0.5 text-teal-700" aria-hidden />}
-          <div>
-            <h2 className="text-[13.5px] font-bold">Razorpay {data ? `· ${data.razorpay.mode}` : ''}</h2>
-            <p className="text-[12px] text-muted">{data?.razorpay.configured ? `Key ${data.razorpay.keyId.slice(0, 8)}… · webhook secret ${data.razorpay.webhookConfigured ? 'configured' : 'missing'}` : 'Not configured. Online payment is offered only after RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET are set on the server.'}</p>
-          </div>
-        </div>
-        <p className="text-[11.5px] text-muted">Payment status changes only from a signature-verified callback or webhook. Refunds are issued in Razorpay and recorded here.</p>
-      </section>
-
-      {resource.error && <div className="card p-4 text-[12.5px] text-danger">{resource.error}</div>}
-
-      <div className="card overflow-hidden">
-        <div className="table-wrap">
-          <table className="w-full min-w-[720px] text-left text-[12.5px]">
-            <thead className="border-b border-line bg-page text-[10.5px] uppercase tracking-wide text-muted">
-              <tr><th scope="col" className="px-3 py-2 font-semibold">Booking</th><th scope="col" className="px-3 py-2 font-semibold">Razorpay order</th><th scope="col" className="px-3 py-2 font-semibold">Payment id</th><th scope="col" className="px-3 py-2 text-right font-semibold">Amount</th><th scope="col" className="px-3 py-2 font-semibold">Status</th><th scope="col" className="px-3 py-2 font-semibold">Created</th></tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {data?.payments.length === 0 && <tr><td colSpan={6}><EmptyState icon={Wallet} title="No online payment attempts" description="Payments appear here when a customer starts a Razorpay checkout." /></td></tr>}
-              {data?.payments.map((payment) => (
-                <tr key={payment.id}>
-                  <td className="px-3 py-2.5 font-mono text-[11px] text-teal-700">{payment.reference}</td>
-                  <td className="px-3 py-2.5 font-mono text-[11px]">{payment.providerOrderId}</td>
-                  <td className="px-3 py-2.5 font-mono text-[11px] text-muted">{payment.providerPaymentId ?? '—'}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">{formatINR(payment.amountPaise)}</td>
-                  <td className="px-3 py-2.5"><span className={`badge ${payment.status === 'paid' ? 'badge-green' : payment.status === 'failed' ? 'badge-red' : payment.status === 'refunded' ? 'badge-gray' : 'badge-amber'}`}>{payment.status}</span></td>
-                  <td className="px-3 py-2.5 text-muted">{formatIndiaTime(payment.createdAt, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <p className="text-[11.5px] text-muted">Refunds recorded: {data?.refundCount ?? 0}. To refund a booking, open it under Bookings, record the refund, then issue it in the Razorpay dashboard — the webhook will reconcile the payment status.</p>
     </div>
   )
 }

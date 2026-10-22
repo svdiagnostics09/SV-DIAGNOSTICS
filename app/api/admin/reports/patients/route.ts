@@ -4,8 +4,7 @@ import { guard, jsonError } from '@/lib/auth'
 import { audit } from '@/lib/audit'
 import { one, sql } from '@/lib/db'
 import { firstIssue } from '@/lib/validation'
-import { getSettings } from '@/lib/settings'
-import { sendWhatsappReport, whatsappConfigured, whatsappRecipient } from '@/lib/notify'
+import { whatsappConfigured } from '@/lib/notify'
 import {
   MAX_PDF_BYTES,
   downloadById,
@@ -14,7 +13,6 @@ import {
   pdfHeaders,
   recordDelivery,
   reportDetailForBooking,
-  revokeReport,
   safePdfName,
   saveReport,
 } from '@/lib/reports'
@@ -32,12 +30,10 @@ export const maxDuration = 60
  *   GET    ?file=…                    the stored PDF (admin session required)
  *   POST   ?action=upload             multipart: bookingId + file (application/pdf)
  *   POST   ?action=send               JSON: { bookingId, phone? } → WhatsApp Cloud API
- *   DELETE ?reportId=…&bookingId=…    revoke the live report so old links stop working
  *
- * Nothing is ever sent automatically: an administrator must press Send.
+ * There is no patient download link: a report leaves the laboratory only when an
+ * administrator presses Send, and every attempt is recorded.
  */
-
-const publicBase = (request: Request) => (process.env.NEXT_PUBLIC_SITE_URL?.trim() || new URL(request.url).origin).replace(/\/$/, '')
 
 export async function GET(request: Request) {
   try {
@@ -55,10 +51,10 @@ export async function GET(request: Request) {
     const bookingId = url.searchParams.get('bookingId')
     if (bookingId) {
       if (!z.string().uuid().safeParse(bookingId).success) return Response.json({ error: 'Unknown booking.' }, { status: 400 })
-      const booking = await one(`SELECT id FROM bookings WHERE id = $1`, [bookingId])
+      const booking = await one<{ id: string; reference: string; phone: string }>(`SELECT id, reference, phone FROM bookings WHERE id = $1`, [bookingId])
       if (!booking) return Response.json({ error: 'Booking not found.' }, { status: 404 })
       return Response.json(
-        { ...(await reportDetailForBooking(bookingId)), whatsappConfigured: whatsappConfigured() },
+        { ...(await reportDetailForBooking(bookingId)), reference: booking.reference, bookedPhone: booking.phone, whatsappConfigured: whatsappConfigured() },
         { headers: { 'Cache-Control': 'no-store' } },
       )
     }
@@ -112,7 +108,6 @@ export async function GET(request: Request) {
             fileName: String(row.file_name),
             sizeBytes: Number(row.size_bytes),
             createdAt: new Date(row.report_created_at as string).toISOString(),
-            downloads: Number(row.downloads),
             lastDelivery: row.last_delivery as { status: string; createdAt: string; recipient: string } | null,
           }
           : null,
@@ -121,7 +116,7 @@ export async function GET(request: Request) {
       counts: counts ?? { uploaded: 0, delivered: 0, ready_bookings: 0 },
       whatsapp: {
         configured: whatsappConfigured(),
-        templates: { patient_report: '3 parameters: patient name, reference, report link' },
+        templates: { patient_report: '2 parameters: patient name, reference. The PDF is attached as the header document (create the template with a Document header).' },
       },
     }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {
@@ -160,69 +155,29 @@ export async function POST(request: Request) {
       return Response.json({ id: saved.id, fileName, sizeBytes: bytes.length }, { status: 201 })
     }
 
-    if (action === 'send') {
-      const settings = await getSettings()
-      if (!settings.whatsappReportsEnabled) return Response.json({ error: 'WhatsApp report sending is switched off in Business settings.' }, { status: 409 })
-      const body = z.object({
-        bookingId: z.string().uuid(),
-        phone: z.string().trim().max(20).optional(),
-      }).parse(await request.json().catch(() => null))
-
-      const booking = await one<{ reference: string; patient_name: string; phone: string }>('SELECT reference, patient_name, phone FROM bookings WHERE id = $1', [body.bookingId])
-      if (!booking) return Response.json({ error: 'Booking not found.' }, { status: 404 })
+    // Records that the administrator opened the patient's WhatsApp chat. The
+    // message itself is sent by hand, so this is an audit trail — never a claim
+    // that WhatsApp delivered anything.
+    if (action === 'opened') {
+      const body = z.object({ bookingId: z.string().uuid() }).parse(await request.json().catch(() => null))
       const report = await liveReport(body.bookingId)
-      if (!report) return Response.json({ error: 'Upload the report PDF first, then send it.' }, { status: 409 })
-
-      const phone = (body.phone ?? '').trim() || booking.phone
-      if (!whatsappRecipient(phone)) return Response.json({ error: 'Enter a mobile number with country code, or fix the number on the booking.' }, { status: 400 })
-
-      const link = `${publicBase(request)}/api/reports/download?token=${encodeURIComponent(report.access_token)}`
-      const outcome = await sendWhatsappReport({
-        recipient: phone,
-        patientName: booking.patient_name,
-        reference: booking.reference,
-        fileName: report.file_name,
-        link,
-        templateName: settings.whatsappTemplateName,
-        templateLanguage: settings.whatsappTemplateLanguage,
-        templateParam: settings.whatsappTemplateParam,
-      })
+      if (!report) return Response.json({ error: 'Upload the report PDF first.' }, { status: 409 })
+      const booking = await one<{ reference: string; phone: string }>('SELECT reference, phone FROM bookings WHERE id = $1', [body.bookingId])
+      if (!booking) return Response.json({ error: 'Booking not found.' }, { status: 404 })
       await recordDelivery({
         reportId: report.id,
         bookingId: body.bookingId,
-        recipient: outcome.recipient || phone,
-        status: outcome.status,
-        detail: outcome.detail,
-        providerMessageId: outcome.providerMessageId,
+        recipient: booking.phone,
+        status: 'sent',
+        detail: `Opened WhatsApp chat for ${booking.phone}; the administrator attached ${report.file_name} and sent it manually.`,
+        providerMessageId: null,
         actorEmail: admin.email,
       })
-      await audit({ actor: admin, action: `report.whatsapp_${outcome.status}`, entity: 'patient_reports', entityId: report.id, detail: { reference: booking.reference, recipient: outcome.recipient, detail: outcome.detail }, request })
-
-      if (outcome.status === 'failed') return Response.json({ error: `WhatsApp did not accept the message. ${outcome.detail}`, status: outcome.status }, { status: 502 })
-      return Response.json({ status: outcome.status, detail: outcome.detail, recipient: outcome.recipient, providerMessageId: outcome.providerMessageId })
+      await audit({ actor: admin, action: 'report.whatsapp_opened', entity: 'patient_reports', entityId: report.id, detail: { reference: booking.reference, recipient: booking.phone }, request })
+      return Response.json({ ok: true })
     }
 
     return Response.json({ error: 'Unknown action.' }, { status: 400 })
-  } catch (error) {
-    if (error instanceof ZodError) return Response.json({ error: firstIssue(error) }, { status: 400 })
-    return jsonError(error)
-  }
-}
-
-/** Revoke a report so any link already sent on WhatsApp stops resolving. */
-export async function DELETE(request: Request) {
-  try {
-    const admin = await guard(request, { mutation: true })
-    const url = new URL(request.url)
-    const reportId = url.searchParams.get('reportId')
-    const bookingId = url.searchParams.get('bookingId')
-    if (!reportId || !bookingId || !z.string().uuid().safeParse(reportId).success || !z.string().uuid().safeParse(bookingId).success) {
-      return Response.json({ error: 'Unknown report.' }, { status: 400 })
-    }
-    const removed = await revokeReport(reportId, bookingId)
-    if (!removed.length) return Response.json({ error: 'That report is no longer active.' }, { status: 409 })
-    await audit({ actor: admin, action: 'report.revoke', entity: 'patient_reports', entityId: reportId, detail: { bookingId }, request })
-    return Response.json({ revoked: true })
   } catch (error) {
     if (error instanceof ZodError) return Response.json({ error: firstIssue(error) }, { status: 400 })
     return jsonError(error)

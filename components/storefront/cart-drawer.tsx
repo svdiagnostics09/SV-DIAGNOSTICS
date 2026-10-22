@@ -11,7 +11,7 @@ import { Overlay } from '@/components/storefront/overlay'
 /** Slide-over cart: quantity steppers, remove, subtotal and checkout CTA. */
 export function CartDrawer() {
   const cart = useCart()
-  const { cartOpen, closeCart, openBooking } = useStoreUI()
+  const { cartOpen, closeCart } = useStoreUI()
 
   const listTotal = cart.items.reduce((sum, item) => sum + (item.listPricePaise ?? item.pricePaise) * (item.quantity ?? 1), 0)
   const saving = Math.max(0, listTotal - cart.subtotalPaise)
@@ -110,11 +110,8 @@ export function CartDrawer() {
             </div>
           </dl>
           <p className="mt-1.5 text-[11px] leading-4 text-muted">Home collection fees, if any, are shown at the next step.</p>
-          <button type="button" onClick={() => openBooking(null)} className="btn btn-primary mt-3 w-full">
+          <Link href="/book" onClick={closeCart} className="btn btn-primary mt-3 w-full">
             Continue to booking
-          </button>
-          <Link href="/book" onClick={closeCart} className="mt-2 block text-center text-[11.5px] font-medium text-muted hover:text-green">
-            Open the full booking form
           </Link>
         </div>
       )}

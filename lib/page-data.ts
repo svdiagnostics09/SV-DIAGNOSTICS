@@ -1,6 +1,6 @@
 import { listCategories, listTests } from '@/lib/catalogue'
 import { getSettings, publicSettings } from '@/lib/settings'
-import { getLocation, listLocations, listServiceAreas } from '@/lib/network'
+import { listLocations, listServiceAreas } from '@/lib/network'
 
 /**
  * Shared read model for public pages. Every value is read from PostgreSQL at
@@ -9,14 +9,21 @@ import { getLocation, listLocations, listServiceAreas } from '@/lib/network'
  */
 
 export async function siteShell() {
-  const settings = await getSettings()
-  const locations = await listLocations()
+  // All independent reads go out together — a sequential chain here adds a full
+  // round trip per query to every public page.
+  const [settings, locations, categories, areas] = await Promise.all([
+    getSettings(),
+    listLocations(),
+    listCategories(),
+    listServiceAreas(),
+  ])
   return {
     settings: publicSettings(settings),
-    categories: await listCategories(),
+    categories,
     locations,
-    areas: await listServiceAreas(),
-    primaryLocation: locations[0] ? await getLocation(locations[0].id) : null,
+    areas,
+    // `listLocations()` already returns the full row, so no second query.
+    primaryLocation: locations[0] ?? null,
   }
 }
 

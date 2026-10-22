@@ -1,7 +1,7 @@
 'use client'
 
 import { ArrowRight } from 'lucide-react'
-import { useStoreUI } from '@/components/storefront/ui-provider'
+import Link from 'next/link'
 import { useCity } from '@/components/storefront/city-provider'
 
 /**
@@ -13,7 +13,6 @@ export function PromoBar({ message, offerLabel, offerPrice }: {
   offerLabel: string
   offerPrice: string
 }) {
-  const { openBooking } = useStoreUI()
   const { city } = useCity()
 
   return (
@@ -25,13 +24,12 @@ export function PromoBar({ message, offerLabel, offerPrice }: {
           <span className="font-semibold text-white">{offerLabel}</span>
           <span className="rounded-full bg-mint px-2 py-0.5 text-[11px] font-bold text-forest">{offerPrice}</span>
         </span>
-        <button
-          type="button"
-          onClick={() => openBooking(null)}
+        <Link
+          href="/book"
           className="ml-0.5 inline-flex items-center gap-1 rounded-full bg-orange px-3 py-1 text-[11.5px] font-bold text-white transition hover:bg-orange-600"
         >
           Order Now <ArrowRight size={12} aria-hidden />
-        </button>
+        </Link>
         <span className="sr-only">Available in {city.name}</span>
       </div>
     </div>

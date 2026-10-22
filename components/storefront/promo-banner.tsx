@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { Apple, Dna, Dumbbell, Leaf } from 'lucide-react'
-import { useStoreUI } from '@/components/storefront/ui-provider'
 
 const SLIDES = [
   { id: 'nutridna', title: 'NutriDNA Test', description: 'One test to decode your nutrition, fitness, and metabolism.' },
@@ -15,7 +15,6 @@ const SLIDES = [
  * SVG so it stays crisp at every size and adds no image weight.
  */
 export function PromoBanner() {
-  const { openBooking } = useStoreUI()
   const [index, setIndex] = useState(0)
   const slide = SLIDES[index]
 
@@ -32,9 +31,9 @@ export function PromoBanner() {
             </span>
             <h2 className="mt-3 text-[1.6rem] font-bold leading-tight tracking-[-0.02em] text-forest sm:text-[2rem]">{slide.title}</h2>
             <p className="mt-2 max-w-md text-[13.5px] leading-6 text-ink/70">{slide.description}</p>
-            <button type="button" onClick={() => openBooking(null)} className="btn btn-mint mt-5">
+            <Link href="/book" className="btn btn-mint mt-5">
               Book Now
-            </button>
+            </Link>
           </div>
 
           <DnaArtwork />

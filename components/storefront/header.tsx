@@ -22,7 +22,7 @@ const NAV = [
 export function StoreHeader({ settings }: { settings: PublicSettings }) {
   const pathname = usePathname()
   const cart = useCart()
-  const { openCart, openBooking } = useStoreUI()
+  const { openCart } = useStoreUI()
   const { city } = useCity()
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -102,9 +102,9 @@ export function StoreHeader({ settings }: { settings: PublicSettings }) {
               )}
             </button>
 
-            <button type="button" onClick={() => openBooking(null)} className="btn btn-primary btn-sm hidden sm:inline-flex">
+            <Link href="/book" className="btn btn-primary btn-sm hidden sm:inline-flex">
               Book Now
-            </button>
+            </Link>
           </div>
         </div>
       </div>
@@ -131,7 +131,7 @@ export function StoreHeader({ settings }: { settings: PublicSettings }) {
               <button type="button" onClick={() => { setMenuOpen(false); openCart() }} className="btn btn-outline justify-between">
                 View cart <span>{cart.ready && cart.count > 0 ? `(${cart.count})` : ''}</span>
               </button>
-              <button type="button" onClick={() => { setMenuOpen(false); openBooking(null) }} className="btn btn-primary">Book Now</button>
+              <Link href="/book" onClick={() => setMenuOpen(false)} className="btn btn-primary">Book Now</Link>
               {tel && <a href={`tel:${tel}`} className="btn btn-ghost"><Phone size={15} aria-hidden /> {settings.supportPhone}</a>}
               <Link href="/admin/login" className="btn btn-ghost"><LogIn size={15} aria-hidden /> Admin login</Link>
             </div>

@@ -158,7 +158,6 @@ interface Detail {
   /** Line items are returned alongside the booking, not nested inside it. */
   items: BookingItem[]
   events: Array<{ kind: string; message: string; actor: string; at: string }>
-  payments: Array<{ providerOrderId: string; providerPaymentId: string | null; amountPaise: number; status: string; method: string; createdAt: string }>
   notifications: Array<{ channel: string; recipient: string; template: string; status: string; detail: string; at: string }>
   consents: Array<{ type: string; version: string; accepted: boolean; at: string }>
 }
@@ -192,13 +191,6 @@ function BookingDrawer({ id, onClose, onChanged, onToast }: { id: string; onClos
     const reason = window.prompt('Cancellation reason (shown in the audit log):', 'Cancelled by staff')
     if (!reason) return
     void act({ action: 'cancel', reason }, 'Booking cancelled; slot capacity released.')
-  }
-
-  const refund = () => {
-    if (!detail) return
-    const amount = window.prompt('Refund amount in ₹ (issue the refund in Razorpay; this records it):', String(detail.booking.totalPaise / 100))
-    if (!amount) return
-    void act({ action: 'refund', amountPaise: Math.round(Number(amount) * 100), note: 'Recorded from admin console' }, 'Refund recorded.')
   }
 
   const editEmail = async () => {
@@ -280,23 +272,9 @@ function BookingDrawer({ id, onClose, onChanged, onToast }: { id: string; onClos
 
             <section>
               <div className="flex items-center justify-between">
-                <h3 className="text-[12px] font-bold uppercase tracking-wide text-muted">Payments</h3>
-                <div className="flex gap-1">
-                  <button type="button" onClick={editEmail} className="btn btn-ghost btn-sm"><Mail size={13} aria-hidden /> Email</button>
-                  {detail.booking.paymentStatus === 'paid' && <button type="button" onClick={refund} className="btn btn-ghost btn-sm">Record refund</button>}
-                </div>
+                <h3 className="text-[12px] font-bold uppercase tracking-wide text-muted">Notifications</h3>
+                <button type="button" onClick={editEmail} className="btn btn-ghost btn-sm"><Mail size={13} aria-hidden /> Email</button>
               </div>
-              {detail.payments.length === 0 ? <p className="mt-1 text-[12px] text-muted">No online payment attempts for this booking.</p> : (
-                <ul className="mt-1 space-y-1 text-[12px]">
-                  {detail.payments.map((payment) => (
-                    <li key={payment.providerOrderId} className="flex flex-wrap items-center justify-between gap-1 rounded border border-line px-2 py-1.5">
-                      <span className="font-mono text-[10.5px]">{payment.providerOrderId}</span>
-                      <span className="badge badge-gray">{payment.status}</span>
-                      <span className="tabular-nums">{formatINR(payment.amountPaise)}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
               {detail.notifications.length > 0 && (
                 <>
                   <h3 className="mt-3 text-[12px] font-bold uppercase tracking-wide text-muted">Notifications</h3>

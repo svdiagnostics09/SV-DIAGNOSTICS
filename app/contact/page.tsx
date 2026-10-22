@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 import { Clock3, Mail, MapPin, Phone } from 'lucide-react'
-import { listLocations } from '@/lib/network'
 import { siteShell } from '@/lib/page-data'
 import { SiteShell } from '@/components/site/site-shell'
 import { ContactForm } from '@/components/site/contact-form'
@@ -10,7 +9,7 @@ export const metadata: Metadata = { title: 'Contact', description: 'Contact SV D
 export const revalidate = 60
 
 export default async function ContactPage() {
-  const [{ settings }, locations] = await Promise.all([siteShell(), listLocations()])
+  const { settings, locations } = await siteShell()
   const subjects = ['General enquiry', 'Test availability', 'Home collection', 'Existing booking', 'Report query', 'Billing']
 
   return (

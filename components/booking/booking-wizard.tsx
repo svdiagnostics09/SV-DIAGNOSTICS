@@ -1,31 +1,19 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { ArrowLeft, ArrowRight, Check, Clock3, FlaskConical, Home, Loader2, Lock, MapPin, Search as SearchIcon, ShoppingBag, Store, Trash2 } from 'lucide-react'
 import { useCart } from '@/components/cart-provider'
-import type { TestView } from '@/lib/catalogue'
+import type { TestView, PackageView } from '@/lib/catalogue'
 import type { LocationView, ServiceAreaView } from '@/lib/network'
 import type { BookingConfigShape } from '@/lib/booking-config'
 import { formatINR } from '@/lib/format'
 
 interface AvailabilityDay { date: string; label: string; weekday: number; slots: Array<{ id: number; label: string; startTime: string; remaining: number; capacity: number; available: boolean }> }
 
-type PaymentMethod = 'online' | 'pay_lab' | 'pay_home'
+type PaymentMethod = 'pay_lab' | 'pay_home'
 
 const STEPS = ['Tests', 'Collection', 'Slot', 'Patient', 'Confirm'] as const
-
-function loadRazorpay() {
-  return new Promise<boolean>((resolve) => {
-    if (typeof window === 'undefined') return resolve(false)
-    if ((window as unknown as { Razorpay?: unknown }).Razorpay) return resolve(true)
-    const script = document.createElement('script')
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js'
-    script.onload = () => resolve(true)
-    script.onerror = () => resolve(false)
-    document.body.appendChild(script)
-  })
-}
 
 /**
  * Five-step booking flow. The summary is a preview; the server recalculates
@@ -34,6 +22,7 @@ function loadRazorpay() {
 export function BookingWizard({ config, locations, areas }: { config: BookingConfigShape; locations: LocationView[]; areas: ServiceAreaView[] }) {
   const searchParams = useSearchParams()
   const presetTestId = Number(searchParams.get('test') ?? '')
+  const presetPackageId = Number(searchParams.get('package') ?? '')
   const cart = useCart()
   const [step, setStep] = useState(0)
   const [method, setMethod] = useState<'home' | 'lab'>(config.collectionEnabled ? 'home' : 'lab')
@@ -46,12 +35,14 @@ export function BookingWizard({ config, locations, areas }: { config: BookingCon
   const [date, setDate] = useState('')
   const [slotId, setSlotId] = useState<number | null>(null)
   const [patient, setPatient] = useState({ patientName: '', patientAge: '', patientGender: '', phone: '', email: '' })
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(config.payOnline ? 'online' : config.payAtLab ? 'pay_lab' : 'pay_home')
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(config.payAtLab ? 'pay_lab' : 'pay_home')
   const [consent, setConsent] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
   const [catalog, setCatalog] = useState<TestView[]>([])
+  const [packages, setPackages] = useState<PackageView[]>([])
+  const presetsApplied = useRef(false)
   const [catalogQuery, setCatalogQuery] = useState('')
   const [catalogLoading, setCatalogLoading] = useState(true)
 
@@ -59,24 +50,37 @@ export function BookingWizard({ config, locations, areas }: { config: BookingCon
   const collectionFee = method === 'home' ? config.collectionFeePaise : 0
   const previewTotal = cart.subtotalPaise + collectionFee
 
-  // A test chosen from its detail page is added to the booking automatically.
+  // One catalogue request serves both the step-1 list and any ?test=/?package=
+  // preselection, so opening /book never triggers three separate fetches.
   useEffect(() => {
-    if (!Number.isInteger(presetTestId) || presetTestId <= 0 || !cart.ready || cart.has('test', presetTestId)) return
-    fetch('/api/catalogue?pageSize=500').then((response) => response.json()).then((body) => {
-      const test = (body.tests as TestView[] | undefined)?.find((item) => item.id === presetTestId)
-      if (test) cart.add({ kind: 'test', id: test.id, name: test.name, pricePaise: test.listPricePaise, homeCollection: test.homeCollection })
-    }).catch(() => undefined)
-  }, [presetTestId, cart])
-
-  useEffect(() => {
-    if (step !== 0 || catalog.length > 0) return
+    if (catalog.length > 0) return
     const controller = new AbortController()
-    fetch('/api/catalogue?pageSize=40', { signal: controller.signal })
+    fetch('/api/catalogue?pageSize=48', { signal: controller.signal })
       .then((response) => response.json())
-      .then((body) => { setCatalog(body.tests ?? []); setCatalogLoading(false) })
-      .catch(() => setCatalogLoading(false))
+      .then((body) => {
+        setCatalog(body.tests ?? [])
+        setPackages(body.packages ?? [])
+        setCatalogLoading(false)
+      })
+      .catch((error) => { if ((error as Error).name !== 'AbortError') setCatalogLoading(false) })
     return () => controller.abort()
-  }, [step, catalog.length])
+  }, [catalog.length])
+
+  // A test or package chosen from its detail page is added to the booking as
+  // soon as the catalogue above has loaded.
+  useEffect(() => {
+    if (!cart.ready || presetsApplied.current) return
+    const test = Number.isInteger(presetTestId) && presetTestId > 0 ? catalog.find((item) => item.id === presetTestId) : undefined
+    const pack = Number.isInteger(presetPackageId) && presetPackageId > 0 ? packages.find((item) => item.id === presetPackageId) : undefined
+    if (test && !cart.has('test', test.id)) {
+      cart.add({ kind: 'test', id: test.id, name: test.name, pricePaise: test.pricePaise, listPricePaise: test.listPricePaise, homeCollection: test.homeCollection })
+    }
+    if (pack && !cart.has('package', pack.id)) {
+      cart.add({ kind: 'package', id: pack.id, name: pack.name, pricePaise: pack.pricePaise, listPricePaise: pack.originalPricePaise ?? pack.pricePaise, homeCollection: pack.homeCollection })
+    }
+    // Run once per catalogue load: `cart` changes identity on every update.
+    if ((presetTestId > 0 && test) || (presetPackageId > 0 && pack) || (!presetTestId && !presetPackageId)) presetsApplied.current = true
+  }, [presetTestId, presetPackageId, catalog, packages, cart])
 
   useEffect(() => {
     if (method === 'home' && !area) { setDays([]); setAvailabilityState(pincode.length === 6 ? 'ready' : 'loading'); return }
@@ -166,37 +170,19 @@ export function BookingWizard({ config, locations, areas }: { config: BookingCon
       return
     }
 
-    // Online payment is confirmed only by the server-verified callback.
-    if (paymentMethod === 'online' && body.payment?.orderId) {
-      const ready = await loadRazorpay()
-      if (!ready) {
-        cart.clear()
-        window.location.assign(`${body.confirmationUrl}&payment=PENDING`)
-        return
-      }
-      const Razorpay = (window as unknown as { Razorpay: new (options: Record<string, unknown>) => { open: () => void } }).Razorpay
-      new Razorpay({
-        key: body.payment.keyId,
-        amount: body.payment.amountPaise,
-        currency: 'INR',
-        name: config.brandName,
-        description: `Booking ${body.reference}`,
-        order_id: body.payment.orderId,
-        prefill: { name: patient.patientName, contact: patient.phone, email: patient.email || undefined },
-        theme: { color: '#20A99C' },
-        handler: async (result: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
-          const verify = await fetch('/api/payments/verify', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-sv-request': 'fetch' }, body: JSON.stringify({ ...result, reference: body.reference, accessToken: body.accessToken }) })
-          cart.clear()
-          window.location.assign(`${body.confirmationUrl}&payment=${verify.ok ? 'PAID' : 'FAILED'}`)
-        },
-        modal: { ondismiss: () => { cart.clear(); window.location.assign(`${body.confirmationUrl}&payment=CANCELLED`) } },
-      }).open()
-      return
-    }
-
     cart.clear()
     window.location.assign(body.confirmationUrl)
   }
+
+  // Keep the chosen method valid when the collection method changes: pay at
+  // laboratory only exists for lab visits, pay at collection only for home.
+  useEffect(() => {
+    if (paymentMethod === 'pay_lab' && (method !== 'lab' || !config.payAtLab)) {
+      if (config.payAtHome && method === 'home') setPaymentMethod('pay_home')
+    } else if (paymentMethod === 'pay_home' && (method !== 'home' || !config.payAtHome)) {
+      if (config.payAtLab && method === 'lab') setPaymentMethod('pay_lab')
+    }
+  }, [method, paymentMethod, config.payAtLab, config.payAtHome])
 
   const relevantAreas = areas.filter((item) => item.homeCollection)
   const filteredCatalog = catalog
@@ -485,12 +471,11 @@ export function BookingWizard({ config, locations, areas }: { config: BookingCon
 
               <fieldset className="mt-5">
                 <legend className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-muted">Payment method</legend>
-                <div className="grid gap-2 sm:grid-cols-3">
+                <div className="grid gap-2 sm:grid-cols-2">
                   {([
-                    { value: 'online' as const, label: 'Pay online', hint: config.payOnline ? 'Secure payment via Razorpay' : 'Not available', enabled: config.payOnline },
                     { value: 'pay_lab' as const, label: 'Pay at laboratory', hint: 'Pay when you visit', enabled: config.payAtLab && method === 'lab' },
                     { value: 'pay_home' as const, label: 'Pay at collection', hint: 'Pay the collector at home', enabled: config.payAtHome && method === 'home' },
-                  ]).filter((option) => option.enabled || option.value === 'online').map((option) => (
+                  ]).filter((option) => option.enabled).map((option) => (
                     <label key={option.value} className={`flex min-w-0 cursor-pointer items-start gap-2.5 rounded-xl border p-3 transition ${paymentMethod === option.value ? 'border-mint bg-mint-50/70' : 'border-line hover:border-green/40'} ${option.enabled ? '' : 'opacity-50'}`}>
                       <input type="radio" name="payment" value={option.value} checked={paymentMethod === option.value} disabled={!option.enabled} onChange={() => setPaymentMethod(option.value)} className="mt-0.5 accent-[#00B98B]" />
                       <span className="min-w-0"><b className="block text-[12.5px] font-semibold text-forest">{option.label}</b><span className="block text-[11px] leading-4 text-muted">{option.hint}</span></span>
@@ -551,7 +536,7 @@ export function BookingWizard({ config, locations, areas }: { config: BookingCon
               <li className="flex items-center gap-2 text-muted"><Clock3 size={13} className="shrink-0 text-green" aria-hidden /><span className="truncate">{date ? `${days.find((day) => day.date === date)?.label ?? ''} · ${daySlots.find((slot) => slot.id === slotId)?.label ?? 'Pick a time'}` : 'Slot not chosen yet'}</span></li>
               <li className="flex items-center gap-2 text-muted"><FlaskConical size={13} className="shrink-0 text-green" aria-hidden /><span className="truncate">{cart.items.length} test{cart.items.length === 1 ? '' : 's'} · final amount verified on server</span></li>
             </ul>
-            <p className="flex items-start gap-1.5 pt-1 text-[10.5px] leading-4 text-muted"><Lock size={11} className="mt-0.5 shrink-0" aria-hidden /> Payments are processed by Razorpay. We never store card details.</p>
+            <p className="flex items-start gap-1.5 pt-1 text-[10.5px] leading-4 text-muted"><Lock size={11} className="mt-0.5 shrink-0" aria-hidden /> No card details are collected online. Pay the collector or at the laboratory.</p>
           </div>
         </aside>
       </div>

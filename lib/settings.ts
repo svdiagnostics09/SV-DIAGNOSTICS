@@ -24,7 +24,6 @@ export const DEFAULT_SETTINGS = {
   collectionFeePaise: 0,
   bookingHorizonDays: 14,
   slotHoldMinutes: 15,
-  payOnlineEnabled: true,
   payAtLabEnabled: true,
   payAtHomeEnabled: true,
   cancellationWindowHours: 4,
@@ -53,7 +52,7 @@ export const DEFAULT_SETTINGS = {
 
 type SettingsShape = typeof DEFAULT_SETTINGS
 
-export type BusinessSettings = { [K in keyof SettingsShape]: K extends 'announcementEnabled' | 'collectionEnabled' | 'payOnlineEnabled' | 'payAtLabEnabled' | 'payAtHomeEnabled' | 'whatsappReportsEnabled' ? boolean : K extends 'collectionFeePaise' | 'bookingHorizonDays' | 'slotHoldMinutes' | 'cancellationWindowHours' ? number : string }
+export type BusinessSettings = { [K in keyof SettingsShape]: K extends 'announcementEnabled' | 'collectionEnabled' | 'payAtLabEnabled' | 'payAtHomeEnabled' | 'whatsappReportsEnabled' ? boolean : K extends 'collectionFeePaise' | 'bookingHorizonDays' | 'slotHoldMinutes' | 'cancellationWindowHours' ? number : string }
 
 export const settingsSchema = z.object({
   brandName: z.string().trim().min(2).max(80),
@@ -70,7 +69,6 @@ export const settingsSchema = z.object({
   collectionFeePaise: z.number().int().min(0).max(500000),
   bookingHorizonDays: z.number().int().min(1).max(60),
   slotHoldMinutes: z.number().int().min(5).max(60),
-  payOnlineEnabled: z.boolean(),
   payAtLabEnabled: z.boolean(),
   payAtHomeEnabled: z.boolean(),
   cancellationWindowHours: z.number().int().min(0).max(72),
@@ -88,7 +86,34 @@ export const settingsSchema = z.object({
   whatsappTemplateParam: z.string().trim().max(200),
 })
 
+/**
+ * Business settings change rarely but are read on almost every page and API
+ * call. Caching the merged row for a few seconds removes a database round trip
+ * from the critical path; `saveSettings()` clears it immediately so the admin
+ * console still sees its own changes at once. Keyed on globalThis so dev-mode
+ * module reloads reuse the same cache.
+ */
+const SETTINGS_TTL_MS = 30_000
+
+const settingsGlobal = globalThis as typeof globalThis & {
+  __svSettingsCache?: { value: BusinessSettings; expiresAt: number } | null
+}
+let settingsCache = settingsGlobal.__svSettingsCache ?? null
+
+function setSettingsCache(value: typeof settingsCache) {
+  settingsCache = value
+  settingsGlobal.__svSettingsCache = value
+}
+
 export async function getSettings(): Promise<BusinessSettings> {
+  const now = Date.now()
+  if (settingsCache && settingsCache.expiresAt > now) return settingsCache.value
+  const value = await loadSettings()
+  setSettingsCache({ value, expiresAt: now + SETTINGS_TTL_MS })
+  return value
+}
+
+async function loadSettings(): Promise<BusinessSettings> {
   const rows = await sql<{ key: string; value: unknown }>('SELECT key, value FROM business_settings')
   const merged: Record<string, unknown> = { ...DEFAULT_SETTINGS }
   for (const row of rows) {
@@ -99,13 +124,14 @@ export async function getSettings(): Promise<BusinessSettings> {
 
 export async function saveSettings(patch: Partial<BusinessSettings>) {
   const entries = Object.entries(patch).filter(([key]) => key in DEFAULT_SETTINGS)
-  for (const [key, value] of entries) {
-    await sql(
+  await Promise.all(entries.map(([key, value]) =>
+    sql(
       `INSERT INTO business_settings (key, value, updated_at) VALUES ($1, $2::jsonb, now())
        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`,
       [key, JSON.stringify(value)],
-    )
-  }
+    ),
+  ))
+  setSettingsCache(null)
   return getSettings()
 }
 
@@ -125,7 +151,6 @@ export function publicSettings(settings: BusinessSettings) {
     collectionEnabled: settings.collectionEnabled,
     collectionFeePaise: settings.collectionFeePaise,
     bookingHorizonDays: settings.bookingHorizonDays,
-    payOnlineEnabled: settings.payOnlineEnabled,
     payAtLabEnabled: settings.payAtLabEnabled,
     payAtHomeEnabled: settings.payAtHomeEnabled,
     cancellationWindowHours: settings.cancellationWindowHours,

@@ -11,7 +11,6 @@ export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Booking confirmation', robots: { index: false } }
 
 const PAYMENT_COPY: Record<string, string> = {
-  online: 'Online payment',
   pay_lab: 'Pay at the laboratory',
   pay_home: 'Pay at collection',
 }
@@ -22,7 +21,6 @@ export default async function ConfirmationPage({ params, searchParams }: { param
   const token = typeof query.t === 'string' ? query.t : ''
   const [booking, { settings }] = await Promise.all([getBookingForConfirmation(reference, token), siteShell()])
   if (!booking) notFound()
-  const paymentState = typeof query.payment === 'string' ? query.payment : ''
   const paid = booking.paymentStatus === 'paid'
 
   return (
@@ -30,7 +28,7 @@ export default async function ConfirmationPage({ params, searchParams }: { param
       <div className="container-x max-w-3xl py-10">
         <div className="card p-6 sm:p-8" id="confirmation">
           <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
-            <span className={`grid size-12 shrink-0 place-items-center rounded-full ${paid || booking.paymentMethod !== 'online' ? 'bg-teal-50 text-teal-700' : 'bg-[#fef3c7] text-[#92400e]'}`}>
+            <span className="grid size-12 shrink-0 place-items-center rounded-full bg-teal-50 text-teal-700">
               <CheckCircle2 size={24} aria-hidden />
             </span>
             <div>
@@ -45,18 +43,6 @@ export default async function ConfirmationPage({ params, searchParams }: { param
             <p className="mt-1 font-mono text-[22px] font-bold tracking-wider text-navy">{booking.reference}</p>
             <p className="mt-2 text-[12px] leading-5 text-muted">Track this booking with your reference and the mobile number ending in <b className="text-ink">…{booking.phone.slice(-4)}</b>. Do not share the reference publicly.</p>
           </div>
-
-          {booking.paymentMethod === 'online' && (
-            <div className={`mt-4 rounded-lg px-3.5 py-3 text-[12.5px] ${paid ? 'bg-teal-50 text-teal-700' : paymentState === 'FAILED' ? 'bg-[#fef2f2] text-danger' : 'bg-[#fef3c7] text-[#92400e]'}`} role="status">
-              {paid
-                ? 'Payment verified. Your booking is confirmed.'
-                : paymentState === 'FAILED'
-                  ? 'The payment could not be verified. Your booking is held pending — do not pay again without checking with the laboratory.'
-                  : paymentState === 'CANCELLED'
-                    ? 'Payment was cancelled. Your booking is saved as pending; contact the laboratory to complete payment.'
-                    : 'Payment is pending verification. This page will reflect the verified status once our server receives the payment confirmation.'}
-            </div>
-          )}
 
           <dl className="mt-6 grid gap-4 sm:grid-cols-2">
             <div>

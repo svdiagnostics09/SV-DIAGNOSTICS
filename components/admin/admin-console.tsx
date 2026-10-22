@@ -33,7 +33,7 @@ import { ContentPanel } from '@/components/admin/panels/content'
 import { BookingsPanel } from '@/components/admin/panels/bookings'
 import { EnquiriesPanel } from '@/components/admin/panels/enquiries'
 import { LocationsPanel, ServiceAreasPanel, SlotsPanel } from '@/components/admin/panels/network'
-import { PaymentsPanel, ReportsPanel, AuditPanel } from '@/components/admin/panels/reports'
+import { ReportsPanel, AuditPanel } from '@/components/admin/panels/reports'
 import { SettingsPanel } from '@/components/admin/panels/settings'
 import { CustomersPanel } from '@/components/admin/panels/customers'
 import { PatientReportsPanel } from '@/components/admin/panels/patient-reports'
@@ -51,7 +51,6 @@ const TITLES: Record<string, { title: string; description: string }> = {
   enquiries: { title: 'Enquiries', description: 'Messages submitted from the contact form' },
   customers: { title: 'Customers & Patients', description: 'Restricted view of patient booking history' },
   'patient-reports': { title: 'Patient Reports', description: 'Upload report PDFs and send them to patients on WhatsApp' },
-  payments: { title: 'Payments & Refunds', description: 'Payment attempts and refund records' },
   reports: { title: 'Reports', description: 'Operational and revenue summaries' },
   locations: { title: 'Locations', description: 'Laboratory branches and opening hours' },
   areas: { title: 'Service Areas', description: 'Home collection coverage by pincode' },
@@ -91,7 +90,6 @@ export function AdminConsole({ user, dashboard, bookings }: { user: AdminUser; d
     },
     {
       label: 'Finance', items: [
-        { key: 'payments', label: 'Payments', icon: Wallet },
         { key: 'reports', label: 'Reports', icon: FileText },
       ]
     },
@@ -148,7 +146,6 @@ export function AdminConsole({ user, dashboard, bookings }: { user: AdminUser; d
           {active === 'enquiries' && <EnquiriesPanel onToast={toasts.push} />}
           {active === 'customers' && <CustomersPanel />}
           {active === 'patient-reports' && <PatientReportsPanel onToast={toasts.push} />}
-          {active === 'payments' && <PaymentsPanel />}
           {active === 'reports' && <ReportsPanel />}
           {active === 'locations' && <LocationsPanel onToast={toasts.push} />}
           {active === 'areas' && <ServiceAreasPanel onToast={toasts.push} />}

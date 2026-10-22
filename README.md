@@ -1,14 +1,14 @@
 # SV Diagnostics — Lab & Imaging (Hyderabad)
 
 Production-oriented diagnostic laboratory platform: public website, database-backed
-catalogue, booking engine with atomic slot capacity, Razorpay payments, and an
+catalogue, booking engine with atomic slot capacity, pay-at-collection, and an
 administrator console (CMS, bookings, enquiries, settings, audit log).
 
 - **Frontend:** Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, Lucide
 - **Backend:** Next.js route handlers (Node runtime), Zod validation
 - **Database:** Neon PostgreSQL via `pg` (Pool) + Drizzle schema definitions
 - **Auth:** server-side sessions (httpOnly cookie, SHA-256 token hash in `sessions`), scrypt passwords
-- **Payments:** Razorpay orders, signature-verified checkout, HMAC-verified idempotent webhooks
+- **Payments:** none online — the patient pays the collector at home or at the laboratory reception
 
 > No fabricated data ships with the app. The dashboard shows real counts (zeros when empty),
 > and every placeholder in the price list, banners, FAQs and locations is created by an
@@ -47,16 +47,13 @@ npm run admin:create -- --email owner@svdiagnostics.in --name "Owner" --password
 | --- | --- | --- |
 | `DATABASE_URL` | yes | Neon **pooled** connection string (`-pooler` host) |
 | `ADMIN_EMAIL`, `ADMIN_NAME`, `ADMIN_PASSWORD` | first run | Bootstrap owner account (≥10 chars). No default exists. |
-| `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` | for online payment | Server-side order creation + checkout signature checks |
-| `RAZORPAY_WEBHOOK_SECRET` | for webhooks | HMAC verification of `/api/payments/webhook` |
 | `RESEND_API_KEY`, `EMAIL_FROM`, `STAFF_EMAIL` | optional | Transactional email + staff alerts |
-| `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` | for WhatsApp reports | Meta WhatsApp Cloud API credentials (server-only) |
-| `WHATSAPP_TEMPLATE_NAME`, `WHATSAPP_API_VERSION` | optional | Pin the template / Graph version instead of the Business settings values |
-| `NEXT_PUBLIC_SITE_URL` | recommended | Absolute origin used in the patient report link (e.g. `https://svdiagnostics.in`) |
+| `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` | no | Not needed — reports are sent by hand from the console |
+| `NEXT_PUBLIC_SITE_URL` | recommended | Absolute origin used in emails (e.g. `https://svdiagnostics.in`) |
 | `IP_HASH_SALT` | optional | Salt for hashed client identifiers in consent records |
-| `DATABASE_POOL_SIZE` | optional | Pool size (default 5, suitable for Neon pooled connections) |
+| `DATABASE_POOL_SIZE` | optional | Pool size (default 10, suitable for Neon pooled connections) |
 
-Secrets live only in server code. `RAZORPAY_KEY_SECRET`, the webhook secret and the database
+Secrets live only in server code. The database URL is never sent to the browser.
 URL are never sent to the browser.
 
 ## 3. Database
@@ -81,20 +78,19 @@ collection_slots, slot_blackouts, slot_reservations, slot_holds, bookings, booki
 booking_events, payments, payment_events, consent_records, notifications, audit_logs,
 enquiries, banners, faqs, blog_posts, business_settings, login_attempts.
 
-## 4. Booking, capacity and payments
+## 4. Booking, capacity and payment
 
 1. `PUT /api/bookings` gives a server-computed price preview (browser totals are cosmetic).
 2. `POST /api/bookings` re-prices from the database, validates method/location/pincode/weekday/
    blackout/horizon, then inside **one transaction** inserts (or refreshes) the reservation row,
    locks it with `SELECT … FOR UPDATE`, checks capacity, increments `holds`, writes the booking,
    items, consent record and hold. Racing requests wait on the lock and receive **409** once full.
-3. Confirming a booking (staff action or a verified payment) converts the hold into `booked`.
-   Cancelling releases exactly one place (hold or booked) — never twice.
+3. Confirming a booking (staff action) converts the hold into `booked`. Cancelling releases
+   exactly one place (hold or booked) — never twice.
 4. Unpaid holds expire after `slotHoldMinutes`; `releaseExpiredHolds()` runs lazily on availability
    reads and cancels abandoned `pending_confirmation` bookings, freeing capacity.
-5. Online payment creates a Razorpay order server-side. The booking becomes **paid/confirmed only**
-   after the signature-verified callback (`/api/payments/verify`) or a verified webhook. Amount
-   mismatches are logged and never marked paid. Webhook replays are no-ops.
+5. There is **no online payment**. The patient chooses *pay at laboratory* (lab visit) or *pay at
+   collection* (home collection) and pays in person; staff mark the booking paid from the console.
 
 ## 5. Security
 
@@ -116,22 +112,17 @@ report, its last WhatsApp attempt and three actions:
 
 1. **Upload PDF** — stored in Postgres (`patient_reports.content`), so every
    serverless instance sees the same file. Only PDFs pass (checked by file
-   signature, max 20 MB). Uploading a new version revokes the previous link.
-2. **Send on WhatsApp** — never automatic. The send is logged in
-   `report_deliveries` with Meta's message id, or the exact error Meta returned.
-3. **History** — every version, download count and delivery attempt; a different
-   mobile number can be used for one send without changing the booking.
+   signature, max 20 MB). Uploading a new version replaces the previous one.
+2. **Send on WhatsApp** — never automatic. The button opens a `wa.me` chat with
+   the patient's number in a new tab; you attach the uploaded PDF and press send
+   yourself. The console records each attempt in `report_deliveries`.
+3. **History** — every version and delivery attempt; a different mobile number
+   can be used for one send without changing the booking.
 
-The patient gets a private link (`/api/reports/download?token=…`, 32 random
-bytes, revocable) and can also open the report from **Track booking** after
-entering the reference *and* registered mobile number.
-
-Configure it at Meta for Developers → WhatsApp → API Setup, then set
-`WHATSAPP_TOKEN` and `WHATSAPP_PHONE_NUMBER_ID` on the host. The default template
-`patient_report` needs three body parameters — `{{1}}` patient name, `{{2}}`
-booking reference, `{{3}}` report link. Plain text (no template) only works
-within 24 hours of the patient messaging you; templates work any time. Set the
-template name under **Business settings → WhatsApp report delivery**.
+There is no patient download link and no public report URL: a report leaves the
+laboratory only when a staff member sends it. No WhatsApp API credentials are
+required — the chat opens in the browser's WhatsApp (app on mobile, WhatsApp Web
+on desktop).
 
 ## 7. Testing
 
@@ -144,8 +135,8 @@ npm test                        # in another (TEST_BASE_URL defaults to :3100; s
 `scripts/test-api.mjs` runs 30+ checks covering authentication/authorization, CSRF, test CRUD and
 public visibility, price consistency, booking persistence, client-amount tampering, idempotent
 duplicates, concurrent capacity enforcement, cancellation capacity release, tracking privacy,
-illegal status jumps, webhook/checkout signature rejection, enquiry validation and archiving.
-It creates and removes its own fixtures. See `TEST_REPORT.md` for the latest run.
+illegal status jumps, rejection of online payment / removed report links, enquiry validation and
+archiving. It creates and removes its own fixtures. See `TEST_REPORT.md` for the latest run.
 
 ## 8. Deployment
 
@@ -153,10 +144,10 @@ It creates and removes its own fixtures. See `TEST_REPORT.md` for the latest run
 2. Set all environment variables in your host (Vercel: Project → Settings → Environment Variables).
 3. Build command `npm run build`, start command `npm start`. Run `npm run db:migrate` once (locally or
    in a release step) against the production database.
-4. In Razorpay, add the webhook `https://<domain>/api/payments/webhook` for `payment.captured`,
-   `payment.failed`, `refund.processed` and set the same secret as `RAZORPAY_WEBHOOK_SECRET`.
-5. Serve over HTTPS (`Secure` cookies are on in production) and verify `/admin/login` works with
+4. Serve over HTTPS (`Secure` cookies are on in production) and verify `/admin/login` works with
    the owner account.
+
+No payment gateway needs to be configured — payment is collected in person.
 
 ### Vercel (recommended)
 
@@ -172,7 +163,7 @@ npx vercel --prod
 
 Migrations are **not** run by the build — run `db:migrate` once per schema change
 against the production `DATABASE_URL` (step 3). Then set `NEXT_PUBLIC_SITE_URL`
-to the production domain and redeploy so WhatsApp links use it.
+to the production domain and redeploy so email links use it.
 
 > Brand logo uploads still write to `public/uploads/brand` (local disk). On a
 > read-only/serverless host that folder does not persist across deployments —

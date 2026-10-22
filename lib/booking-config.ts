@@ -1,5 +1,4 @@
 export interface BookingConfigShape {
-  payOnline: boolean
   payAtLab: boolean
   payAtHome: boolean
   collectionEnabled: boolean

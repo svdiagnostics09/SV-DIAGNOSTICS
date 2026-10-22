@@ -317,7 +317,7 @@ export const patientReports = pgTable('patient_reports', {
   sizeBytes: integer('size_bytes').notNull(),
   content: customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => 'bytea' })('content').notNull(),
   sha256: text('sha256').notNull(),
-  accessToken: text('access_token').notNull().unique(),
+  accessToken: text('access_token'),
   uploadedBy: uuid('uploaded_by').references(() => users.id, { onDelete: 'set null' }),
   uploadedByEmail: text('uploaded_by_email').notNull().default(''),
   createdAt: now(),

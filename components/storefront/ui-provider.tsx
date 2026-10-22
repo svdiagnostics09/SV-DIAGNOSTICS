@@ -16,25 +16,17 @@ interface StoreUIContext {
   cartOpen: boolean
   openCart: () => void
   closeCart: () => void
-  /** Booking modal target (null = general booking), or null when closed. */
-  booking: StoreProduct | null
-  /** Whether the booking modal is open (distinct from ``booking === null``). */
-  bookingOpen: boolean
-  openBooking: (product?: StoreProduct | null) => void
-  closeBooking: () => void
 }
 
 const Context = createContext<StoreUIContext | null>(null)
 
 /**
- * Coordinates the three overlays (details / cart / booking) so they never stack
- * on top of each other. The cart itself lives in CartProvider.
+ * Coordinates the two overlays (product details / cart) so they never stack on
+ * top of each other. The cart itself lives in CartProvider.
  */
 export function StoreUIProvider({ children }: { children: React.ReactNode }) {
   const [product, setProduct] = useState<StoreProduct | null>(null)
   const [cartOpen, setCartOpen] = useState(false)
-  const [booking, setBooking] = useState<StoreProduct | null>(null)
-  const [bookingOpen, setBookingOpen] = useState(false)
 
   const openProduct = useCallback((next: StoreProduct) => {
     setCartOpen(false)
@@ -46,13 +38,6 @@ export function StoreUIProvider({ children }: { children: React.ReactNode }) {
     setCartOpen(true)
   }, [])
 
-  const openBooking = useCallback((next?: StoreProduct | null) => {
-    setProduct(null)
-    setCartOpen(false)
-    setBooking(next ?? null)
-    setBookingOpen(true)
-  }, [])
-
   const value = useMemo<StoreUIContext>(() => ({
     product,
     openProduct,
@@ -60,11 +45,7 @@ export function StoreUIProvider({ children }: { children: React.ReactNode }) {
     cartOpen,
     openCart,
     closeCart: () => setCartOpen(false),
-    booking: bookingOpen ? booking : null,
-    bookingOpen,
-    openBooking,
-    closeBooking: () => { setBookingOpen(false); setBooking(null) },
-  }), [product, openProduct, cartOpen, openCart, booking, bookingOpen, openBooking])
+  }), [product, openProduct, cartOpen, openCart])
 
   return <Context.Provider value={value}>{children}</Context.Provider>
 }
