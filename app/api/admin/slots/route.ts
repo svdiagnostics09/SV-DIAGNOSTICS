@@ -21,7 +21,7 @@ const schema = z.object({
 
 interface SlotRow { id: number; label: string; method: string; location_id: number | null; daily_capacity: number; start_time: string; end_time: string; weekdays: number[]; is_active: boolean }
 
-export async function listAllSlots() {
+async function listAllSlots() {
   const rows = await sql(
     `SELECT s.*, l.name AS location_name FROM collection_slots s LEFT JOIN locations l ON l.id = s.location_id ORDER BY s.start_time, s.label`,
   )

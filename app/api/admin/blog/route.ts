@@ -4,7 +4,7 @@ import { listBlogPosts } from '@/lib/content'
 
 export const dynamic = 'force-dynamic'
 
-export const blogSchema = z.object({
+const blogSchema = z.object({
   title: z.string().trim().min(4, 'Enter a title.').max(200),
   excerpt: z.string().max(500).optional().default(''),
   body: z.string().max(60000).optional().default(''),

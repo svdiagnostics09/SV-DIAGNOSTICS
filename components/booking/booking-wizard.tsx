@@ -194,9 +194,9 @@ export function BookingWizard({ config, locations, areas }: { config: BookingCon
     : (locations.find((item) => item.id === locationId)?.name ?? 'Laboratory visit')
 
   return (
-    <div className="page-wide py-5 sm:py-7">
+    <div className="page-wide motion-rise py-5 sm:py-7">
       {/* Page header + progress rail */}
-      <header className="rounded-card border border-line bg-white p-4 shadow-card sm:p-5">
+      <header className="soft-grid rounded-card border border-line bg-white p-4 shadow-card sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
             <h1 className="text-[1.4rem] font-bold leading-tight tracking-[-0.02em] sm:text-[1.75rem]">Book your test</h1>

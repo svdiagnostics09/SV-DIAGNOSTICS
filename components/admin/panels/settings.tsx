@@ -12,7 +12,7 @@ interface SettingsResponse {
     collectionFeePaise: number; bookingHorizonDays: number; slotHoldMinutes: number; payAtLabEnabled: boolean
     payAtHomeEnabled: boolean; cancellationWindowHours: number; consentVersion: string; patientConsentText: string; bookingTermsText: string
     city: string; state: string; logoUrl: string; faviconUrl: string
-    whatsappReportsEnabled: boolean; whatsappTemplateName: string; whatsappTemplateLanguage: string; whatsappTemplateParam: string; reportLinkDays: number
+    whatsappReportsEnabled: boolean; whatsappReportMessage: string; whatsappTemplateName: string; whatsappTemplateLanguage: string; whatsappTemplateParam: string; reportLinkDays: number
   }
   internal: { bookingHorizonDays: number; slotHoldMinutes: number; whatsappConfigured: boolean }
   admins: Array<{ id: string; email: string; name: string; role: string; isActive: boolean; lastLoginAt: string | null }>
@@ -123,17 +123,16 @@ function WhatsappSection({ form, configured, set }: {
   set: <K extends keyof SettingsResponse['settings']>(key: K, value: SettingsResponse['settings'][K]) => void
 }) {
   return (
-    <SettingsSection title="WhatsApp report delivery" description="Under Patient Reports, “Send on WhatsApp” opens the patient's chat (wa.me) in a new tab. You attach the PDF and press send yourself — nothing is sent automatically.">
+    <SettingsSection title="WhatsApp report sharing" description="Under Patient Reports, “Share report link” opens the patient's chat (wa.me) with a secure PDF link and this message ready to send.">
       <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-[#a7e8df] bg-mint-50 px-3 py-2 text-[12px] text-mint-700">
-        Manual WhatsApp sending needs no API credentials. The chat opens with the patient's number and a ready-made message; attach the uploaded PDF before sending.
+        Manual WhatsApp sharing needs no API credentials. The chat opens with the patient’s number, your message template and a personal PDF link; review it, then press send.
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Message greeting" id="s-wa-template" hint="Pre-filled text in the chat. The PDF is attached manually.">
-          <input id="s-wa-template" className="input" placeholder="Hello" value={form.whatsappTemplateName} onChange={(event) => set('whatsappTemplateName', event.target.value)} />
-        </Field>
-        <Field label="Template language" id="s-wa-lang" hint="The code shown in Meta, e.g. en or en_US.">
-          <input id="s-wa-lang" className="input" value={form.whatsappTemplateLanguage} onChange={(event) => set('whatsappTemplateLanguage', event.target.value.replace(/[^a-z_]/g, ''))} />
-        </Field>
+        <div className="sm:col-span-2">
+          <Field label="Preview-link message template" id="s-wa-message" hint="Use {name}, {reference}, {link}, {expiresAt} and {brand}. The secure PDF preview link is added automatically if {link} is omitted.">
+            <textarea id="s-wa-message" className="input min-h-32" value={form.whatsappReportMessage} onChange={(event) => set('whatsappReportMessage', event.target.value)} maxLength={1200} />
+          </Field>
+        </div>
         <Field label="Report link valid for (days)" id="s-report-link" hint="How long the patient's download link keeps working after it is sent.">
           <input id="s-report-link" className="input" inputMode="numeric" value={String(form.reportLinkDays)} onChange={(event) => set('reportLinkDays', Math.min(180, Math.max(1, Number(event.target.value.replace(/\D/g, '') || 30))))} />
         </Field>

@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { siteShell } from '@/lib/page-data'
-import { SiteShell } from '@/components/site/site-shell'
+import { StorefrontShell } from '@/components/storefront/storefront-shell'
 import { BookingWizard } from '@/components/booking/booking-wizard'
 import type { BookingConfigShape } from '@/lib/booking-config'
 
@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic'
 export default async function BookPage() {
   const { settings, locations, areas } = await siteShell()
   return (
-    <SiteShell settings={settings}>
+    <StorefrontShell settings={settings}>
       <Suspense fallback={<div className="container-x py-10"><div className="skeleton h-64 w-full" /></div>}>
         <BookingWizard
           config={{
@@ -29,6 +29,6 @@ export default async function BookPage() {
           areas={areas}
         />
       </Suspense>
-    </SiteShell>
+    </StorefrontShell>
   )
 }

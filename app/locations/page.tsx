@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Clock3, ExternalLink, Mail, MapPin, Phone } from 'lucide-react'
 import { siteShell } from '@/lib/page-data'
-import { SiteShell } from '@/components/site/site-shell'
+import { StorefrontShell } from '@/components/storefront/storefront-shell'
 import { PageHeader, EmptyState, Badge } from '@/components/ui'
 
 export const metadata: Metadata = { title: 'Locations', description: 'SV Diagnostics laboratory branches in Hyderabad with addresses, phone numbers and opening hours.' }
@@ -12,7 +12,7 @@ export default async function LocationsPage() {
   const { settings, locations } = await siteShell()
 
   return (
-    <SiteShell settings={settings}>
+    <StorefrontShell settings={settings}>
       <PageHeader
         title="Laboratory Locations"
         description="Visit us for sample collection or walk-in guidance. Online bookings use these locations' configured slots."
@@ -56,6 +56,6 @@ export default async function LocationsPage() {
           </div>
         )}
       </div>
-    </SiteShell>
+    </StorefrontShell>
   )
 }

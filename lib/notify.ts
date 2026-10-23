@@ -41,8 +41,8 @@ const templateParam = (value: string) => value.replace(/[\r\n\t]+/g, ' ').trim()
  * Two ways to send:
  *  - **API** (WhatsApp Cloud API): the branded PDF is uploaded to Meta and sent
  *    as a document, with the logo in the template header. One click, automatic.
- *  - **Manual** (wa.me): opens the patient's chat in the browser so a staff
- *    member attaches the PDF and presses send. Works with no setup at all.
+ *  - **Manual** (wa.me): opens the patient's chat with a personal inline-PDF
+ *    preview link and a pre-filled message. Works with no setup at all.
  *
  * Neither path ever claims delivery it cannot prove: the result is what Meta
  * returned, or the fact that a chat was opened.
@@ -101,6 +101,8 @@ export async function sendWhatsappDocument(input: {
   logoUrl: string | null
   /** Download link included in the message body / document caption. */
   patientLink: string | null
+  /** Fully rendered staff message used for the document caption and link text. */
+  linkMessage: string | null
   caption: string
 }): Promise<WhatsappOutcome> {
   const recipient = whatsappRecipient(input.recipient)
@@ -148,7 +150,8 @@ export async function sendWhatsappDocument(input: {
       return { status: 'failed', detail: `WhatsApp responded ${response.status}: ${(payload.error?.message ?? 'unknown error').slice(0, 250)}`, recipient, providerMessageId: null }
     }
 
-    // A template body is fixed text, so the link travels as a follow-up message.
+    // A Meta template body is fixed text, so the configured preview-link
+    // message travels as a follow-up message.
     if (templateName && input.patientLink) {
       await graph(`${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
         method: 'POST',
@@ -158,7 +161,7 @@ export async function sendWhatsappDocument(input: {
           recipient_type: 'individual',
           to: recipient,
           type: 'text',
-          text: { preview_url: true, body: `Download your report: ${input.patientLink}` },
+          text: { preview_url: true, body: (input.linkMessage || `Download your report: ${input.patientLink}`).slice(0, 4096) },
         }),
       }).catch(() => undefined)
     }

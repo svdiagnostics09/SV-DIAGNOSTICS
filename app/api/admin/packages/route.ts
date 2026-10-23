@@ -7,7 +7,7 @@ import { firstIssue } from '@/lib/validation'
 
 export const dynamic = 'force-dynamic'
 
-export async function listAdminPackages() {
+async function listAdminPackages() {
   const rows = await sql<Record<string, unknown>>(
     `SELECT p.*, count(pt.test_id)::int AS test_count,
        COALESCE(sum(CASE WHEN t.discount_type = 'percent' THEN round(t.price_paise * (100 - t.discount_value) / 100.0)
@@ -91,4 +91,3 @@ export async function POST(request: Request) {
   }
 }
 
-export { validatePackage, schema as packageSchema }

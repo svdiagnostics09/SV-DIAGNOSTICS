@@ -8,11 +8,10 @@ import { one, sql } from '@/lib/db'
  * serverless instance serves the same bytes — writing to `public/uploads` would
  * vanish when the function scales out or a container is recycled.
  *
- * There is no public download link. Files are reached in exactly two places,
- * both behind an administrator session:
- *   1. Upload / view / history  → /api/admin/reports/patients
- *   2. Staff hand the report to the patient with the explicit
- *      “Send on WhatsApp” action, which logs every attempt in report_deliveries.
+ * Administrators upload and inspect files at /api/admin/reports/patients. A
+ * patient can access a report only through a time-limited, random-token link
+ * created by the explicit WhatsApp sharing action; every send attempt is
+ * recorded in report_deliveries.
  */
 
 /** Meta's media limit is 100 MB; 20 MB is plenty for a scanned report. */

@@ -113,16 +113,17 @@ report, its last WhatsApp attempt and three actions:
 1. **Upload PDF** — stored in Postgres (`patient_reports.content`), so every
    serverless instance sees the same file. Only PDFs pass (checked by file
    signature, max 20 MB). Uploading a new version replaces the previous one.
-2. **Send on WhatsApp** — never automatic. The button opens a `wa.me` chat with
-   the patient's number in a new tab; you attach the uploaded PDF and press send
-   yourself. The console records each attempt in `report_deliveries`.
+2. **Send preview link** — never automatic. The button opens a `wa.me` chat
+   with the patient's number, a configurable message and a secure inline-PDF
+   preview link. Review it and press send yourself. The console records each
+   attempt in `report_deliveries`.
 3. **History** — every version and delivery attempt; a different mobile number
    can be used for one send without changing the booking.
 
-There is no patient download link and no public report URL: a report leaves the
-laboratory only when a staff member sends it. No WhatsApp API credentials are
-required — the chat opens in the browser's WhatsApp (app on mobile, WhatsApp Web
-on desktop).
+The patient URL contains a random token, expires automatically and is revoked
+when a newer report is uploaded. It is created only when staff start an explicit
+send. No WhatsApp API credentials are required — the chat opens in the browser's
+WhatsApp (app on mobile, WhatsApp Web on desktop).
 
 ## 7. Testing
 

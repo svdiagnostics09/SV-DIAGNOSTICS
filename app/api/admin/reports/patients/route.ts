@@ -5,9 +5,8 @@ import { audit } from '@/lib/audit'
 import { one, sql } from '@/lib/db'
 import { firstIssue } from '@/lib/validation'
 import { getSettings } from '@/lib/settings'
-import { sendWhatsappDocument, whatsappConfigured, whatsappRecipient } from '@/lib/notify'
-import { hasLogo, signedBrandUrl } from '@/lib/brand-assets'
-import { buildBrandedReport } from '@/lib/report-pdf'
+import { whatsappConfigured, whatsappRecipient } from '@/lib/notify'
+import { renderWhatsappReportMessage } from '@/lib/whatsapp-report'
 import {
   MAX_PDF_BYTES,
   createShareLink,
@@ -37,10 +36,10 @@ const absoluteUrl = (path: string, request: Request) =>
  *   GET    ?bookingId=…               report history and every WhatsApp attempt
  *   GET    ?file=…                    the stored PDF (admin session required)
  *   POST   ?action=upload             multipart: bookingId + file (application/pdf)
- *   POST   ?action=send               JSON: { bookingId, phone? } → WhatsApp Cloud API
+ *   POST   ?action=link               JSON: { bookingId } → secure patient link + message
  *
- * There is no patient download link: a report leaves the laboratory only when an
- * administrator presses Send, and every attempt is recorded.
+ * A patient report link is created only after an administrator explicitly
+ * chooses to share it. Links are personal, short-lived and audited.
  */
 
 export async function GET(request: Request) {
@@ -54,37 +53,6 @@ export async function GET(request: Request) {
       const file = await downloadById(fileId)
       if (!file) return Response.json({ error: 'That report no longer exists.' }, { status: 404 })
       return new Response(new Uint8Array(file.content), { headers: pdfHeaders(file.fileName, file.mimeType) })
-    }
-
-    // The exact file the patient will receive (branded cover + laboratory pages).
-    const previewId = url.searchParams.get('brandedPreview')
-    if (previewId) {
-      if (!z.string().uuid().safeParse(previewId).success) return Response.json({ error: 'Unknown booking.' }, { status: 400 })
-      const settings = await getSettings()
-      const booking = await one<{ reference: string; patient_name: string; phone: string; appointment_date: string; patient_age: number | null; patient_gender: string | null }>(
-        'SELECT reference, patient_name, phone, appointment_date::text AS appointment_date, patient_age, patient_gender FROM bookings WHERE id = $1',
-        [previewId],
-      )
-      if (!booking) return Response.json({ error: 'Booking not found.' }, { status: 404 })
-      const report = await liveReport(previewId)
-      if (!report) return Response.json({ error: 'Upload the report PDF first.' }, { status: 409 })
-      const file = await downloadById(report.id)
-      if (!file) return Response.json({ error: 'That report file could not be read.' }, { status: 404 })
-      const { bytes } = await buildBrandedReport(new Uint8Array(file.content), {
-        brandName: settings.brandName,
-        patientName: booking.patient_name,
-        reference: booking.reference,
-        appointmentDate: booking.appointment_date,
-        patientAge: booking.patient_age,
-        patientGender: booking.patient_gender,
-        phone: booking.phone,
-        supportPhone: settings.supportPhone,
-        city: settings.city,
-        fileName: report.file_name,
-      })
-      return new Response(new Uint8Array(bytes), {
-        headers: { ...pdfHeaders(`preview-${report.file_name}`, 'application/pdf'), 'Content-Disposition': `inline; filename="${report.file_name}"` },
-      })
     }
 
     const bookingId = url.searchParams.get('bookingId')
@@ -194,110 +162,51 @@ export async function POST(request: Request) {
       return Response.json({ id: saved.id, fileName, sizeBytes: bytes.length }, { status: 201 })
     }
 
-    // Sends the branded report through the WhatsApp Cloud API in one click.
-    if (action === 'send') {
-      const settings = await getSettings()
-      if (!settings.whatsappReportsEnabled) return Response.json({ error: 'WhatsApp report sending is switched off in Business settings.' }, { status: 409 })
-      if (!whatsappConfigured()) {
-        return Response.json({ error: 'WhatsApp API is not configured on the server. Use “Open WhatsApp” to send manually, or add WHATSAPP_TOKEN and WHATSAPP_PHONE_NUMBER_ID.' }, { status: 409 })
-      }
-      const body = z.object({
-        bookingId: z.string().uuid(),
-        phone: z.string().trim().max(20).optional(),
-      }).parse(await request.json().catch(() => null))
-
-      const booking = await one<{ reference: string; patient_name: string; phone: string; appointment_date: string; patient_age: number | null; patient_gender: string | null }>(
-        'SELECT reference, patient_name, phone, appointment_date::text AS appointment_date, patient_age, patient_gender FROM bookings WHERE id = $1',
-        [body.bookingId],
-      )
-      if (!booking) return Response.json({ error: 'Booking not found.' }, { status: 404 })
-      const report = await liveReport(body.bookingId)
-      if (!report) return Response.json({ error: 'Upload the report PDF first, then send it.' }, { status: 409 })
-      const phone = (body.phone ?? '').trim() || booking.phone
-      if (!whatsappRecipient(phone)) return Response.json({ error: 'Enter a mobile number with country code, or fix the number on the booking.' }, { status: 400 })
-
-      const file = await downloadById(report.id)
-      if (!file) return Response.json({ error: 'The report file could not be read. Upload it again.' }, { status: 409 })
-
-      // A link the patient can open on any device later, not just the chat.
-      const share = await createShareLink(report.id, settings.reportLinkDays)
-      const shareLink = absoluteUrl(share.url, request)
-      const patientLink = shareLink
-
-      // The logo is drawn into the PDF cover; WhatsApp shows the document, not
-      // our thumbnail, so branding has to travel inside the file itself.
-      const { bytes, branded } = await buildBrandedReport(new Uint8Array(file.content), {
-        brandName: settings.brandName,
-        patientName: booking.patient_name,
-        reference: booking.reference,
-        appointmentDate: booking.appointment_date,
-        patientAge: booking.patient_age,
-        patientGender: booking.patient_gender,
-        phone: booking.phone,
-        supportPhone: settings.supportPhone,
-        city: settings.city,
-        fileName: report.file_name,
-      })
-
-      const outcome = await sendWhatsappDocument({
-        recipient: phone,
-        patientName: booking.patient_name,
-        reference: booking.reference,
-        fileName: report.file_name,
-        bytes,
-        templateName: settings.whatsappTemplateName,
-        templateLanguage: settings.whatsappTemplateLanguage,
-        logoUrl: await hasLogo() ? signedBrandUrl('logo', new URL(request.url).origin) : null,
-        patientLink,
-        caption: `Report for booking ${booking.reference}. Download: ${shareLink}`,
-      })
-      await recordDelivery({
-        reportId: report.id,
-        bookingId: body.bookingId,
-        recipient: outcome.recipient || phone,
-        status: outcome.status === 'sent' ? 'sent' : 'failed',
-        detail: `${outcome.detail}${branded ? ' Branded PDF cover with logo attached.' : ' Report sent as uploaded (no PNG/JPG logo available for a cover).'}`,
-        providerMessageId: outcome.providerMessageId,
-        actorEmail: admin.email,
-      })
-      await audit({ actor: admin, action: `report.whatsapp_${outcome.status}`, entity: 'patient_reports', entityId: report.id, detail: { reference: booking.reference, recipient: outcome.recipient, branded }, request })
-
-      if (outcome.status === 'failed') return Response.json({ error: outcome.detail }, { status: 502 })
-      return Response.json({ status: 'sent', detail: outcome.detail, recipient: outcome.recipient, branded, link: shareLink, expiresAt: share.expiresAt, providerMessageId: outcome.providerMessageId })
-    }
-
-    // Creates the patient's download link. Used by the manual wa.me flow, so the
-    // pre-filled message carries the same link the API send would.
+    // Creates a patient-only report link for the manual wa.me flow and renders
+    // the message template configured in Business settings.
     if (action === 'link') {
       const body = z.object({ bookingId: z.string().uuid() }).parse(await request.json().catch(() => null))
       const settings = await getSettings()
+      if (!settings.whatsappReportsEnabled) return Response.json({ error: 'WhatsApp report sharing is switched off in Business settings.' }, { status: 409 })
+      const booking = await one<{ reference: string; patient_name: string }>('SELECT reference, patient_name FROM bookings WHERE id = $1', [body.bookingId])
+      if (!booking) return Response.json({ error: 'Booking not found.' }, { status: 404 })
       const report = await liveReport(body.bookingId)
       if (!report) return Response.json({ error: 'Upload the report PDF first.' }, { status: 409 })
       const share = await createShareLink(report.id, settings.reportLinkDays)
-      const url = absoluteUrl(share.url, request)
-      await audit({ actor: admin, action: 'report.link_created', entity: 'patient_reports', entityId: report.id, detail: { bookingId: body.bookingId, expiresAt: share.expiresAt }, request })
-      return Response.json({ url, path: share.url, expiresAt: share.expiresAt })
+      const reportUrl = absoluteUrl(share.url, request)
+      const message = renderWhatsappReportMessage({
+        template: settings.whatsappReportMessage,
+        patientName: booking.patient_name,
+        reference: booking.reference,
+        reportUrl,
+        expiresAt: share.expiresAt,
+        brandName: settings.brandName,
+      })
+      await audit({ actor: admin, action: 'report.link_created', entity: 'patient_reports', entityId: report.id, detail: { bookingId: body.bookingId, expiresAt: share.expiresAt, reportUrl }, request })
+      return Response.json({ url: reportUrl, reportUrl, message, path: share.url, expiresAt: share.expiresAt })
     }
 
     // Records that the administrator opened the patient's WhatsApp chat. The
     // message itself is sent by hand, so this is an audit trail — never a claim
     // that WhatsApp delivered anything.
     if (action === 'opened') {
-      const body = z.object({ bookingId: z.string().uuid() }).parse(await request.json().catch(() => null))
+      const body = z.object({ bookingId: z.string().uuid(), phone: z.string().trim().max(20).optional() }).parse(await request.json().catch(() => null))
       const report = await liveReport(body.bookingId)
       if (!report) return Response.json({ error: 'Upload the report PDF first.' }, { status: 409 })
       const booking = await one<{ reference: string; phone: string }>('SELECT reference, phone FROM bookings WHERE id = $1', [body.bookingId])
       if (!booking) return Response.json({ error: 'Booking not found.' }, { status: 404 })
+      const recipient = body.phone || booking.phone
+      if (!whatsappRecipient(recipient)) return Response.json({ error: 'Enter a mobile number with country code, or fix the number on the booking.' }, { status: 400 })
       await recordDelivery({
         reportId: report.id,
         bookingId: body.bookingId,
-        recipient: booking.phone,
+        recipient,
         status: 'sent',
-        detail: `Opened WhatsApp chat for ${booking.phone}; the administrator attaches ${report.file_name} and sends it manually (with a download link).`,
+        detail: `Opened WhatsApp chat for ${recipient}; the administrator sends the configured report-link message manually.`,
         providerMessageId: null,
         actorEmail: admin.email,
       })
-      await audit({ actor: admin, action: 'report.whatsapp_opened', entity: 'patient_reports', entityId: report.id, detail: { reference: booking.reference, recipient: booking.phone }, request })
+      await audit({ actor: admin, action: 'report.whatsapp_opened', entity: 'patient_reports', entityId: report.id, detail: { reference: booking.reference, recipient }, request })
       return Response.json({ ok: true })
     }
 

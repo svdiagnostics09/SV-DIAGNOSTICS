@@ -4,7 +4,7 @@ import { ArrowRight, Newspaper } from 'lucide-react'
 import { listBlogPosts } from '@/lib/content'
 import { formatIndiaTime } from '@/lib/db'
 import { siteShell } from '@/lib/page-data'
-import { SiteShell } from '@/components/site/site-shell'
+import { StorefrontShell } from '@/components/storefront/storefront-shell'
 import { PageHeader, EmptyState } from '@/components/ui'
 
 export const metadata: Metadata = { title: 'Health Articles', description: 'Articles published by SV Diagnostics.' }
@@ -13,7 +13,7 @@ export const revalidate = 300
 export default async function BlogPage() {
   const [{ settings }, posts] = await Promise.all([siteShell(), listBlogPosts()])
   return (
-    <SiteShell settings={settings}>
+    <StorefrontShell settings={settings}>
       <PageHeader title="Health Articles" description="Guidance and updates published by our team." breadcrumbs={[{ label: 'Home', href: '/' }, { label: 'Blog' }]} />
       <div className="container-x py-8">
         {posts.length === 0 ? (
@@ -37,6 +37,6 @@ export default async function BlogPage() {
           </div>
         )}
       </div>
-    </SiteShell>
+    </StorefrontShell>
   )
 }

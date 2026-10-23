@@ -5,7 +5,7 @@ import { CheckCircle2, FlaskConical, Home, Timer } from 'lucide-react'
 import { getPackageBySlug } from '@/lib/catalogue'
 import { formatINR } from '@/lib/db'
 import { siteShell } from '@/lib/page-data'
-import { SiteShell } from '@/components/site/site-shell'
+import { StorefrontShell } from '@/components/storefront/storefront-shell'
 import { AddToBooking } from '@/components/site/add-to-booking'
 import { Breadcrumbs, Badge } from '@/components/ui'
 import { sampleLabel, turnaroundLabel } from '@/lib/labels'
@@ -25,7 +25,7 @@ export default async function PackageDetailPage({ params }: { params: Promise<{ 
   const off = pack.originalPricePaise && pack.originalPricePaise > pack.pricePaise ? Math.round(((pack.originalPricePaise - pack.pricePaise) / pack.originalPricePaise) * 100) : 0
 
   return (
-    <SiteShell settings={settings}>
+    <StorefrontShell settings={settings}>
       <div className="border-b border-line bg-white">
         <div className="container-x py-6">
           <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Health packages', href: '/packages' }, { label: pack.name }]} />
@@ -113,6 +113,6 @@ export default async function PackageDetailPage({ params }: { params: Promise<{ 
           </aside>
         </div>
       </div>
-    </SiteShell>
+    </StorefrontShell>
   )
 }

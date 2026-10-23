@@ -62,7 +62,7 @@ export function AdminShell({ user, groups, active, title, description, onNavigat
                     type="button"
                     onClick={() => { onNavigate(item.key); setMobileOpen(false) }}
                     aria-current={selected ? 'page' : undefined}
-                    className={`flex w-full items-center gap-2.5 rounded-full px-3 py-2 text-left text-[13px] font-medium transition ${selected ? 'bg-mint text-forest shadow-[0_6px_16px_-8px_rgba(0,185,139,0.85)]' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+                    className={`flex w-full items-center gap-2.5 rounded-full px-3 py-2 text-left text-[13px] font-medium transition duration-200 ${selected ? 'bg-mint text-forest shadow-[0_8px_20px_-10px_rgba(20,184,154,0.95)]' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
                   >
                     <Icon size={16} className="shrink-0" aria-hidden />
                     <span className="truncate">{item.label}</span>
@@ -78,9 +78,9 @@ export function AdminShell({ user, groups, active, title, description, onNavigat
   )
 
   return (
-    <div className="min-h-screen bg-page">
+    <div className="admin-canvas min-h-screen">
       {/* Sidebar — desktop */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col bg-band-forest lg:flex">
+      <aside className="admin-rail fixed inset-y-0 left-0 z-40 hidden w-64 flex-col lg:flex">
         <div className="flex h-16 items-center gap-2.5 border-b border-white/10 px-4">
           <BrandMark brand={brand} />
           <div className="min-w-0">
@@ -101,7 +101,7 @@ export function AdminShell({ user, groups, active, title, description, onNavigat
       {mobileOpen && (
         <div className="fixed inset-0 z-50 flex lg:hidden">
           <div className="absolute inset-0 bg-navy/50" onClick={() => setMobileOpen(false)} aria-hidden />
-          <aside className="relative flex h-full w-72 flex-col bg-band-forest">
+          <aside className="admin-rail animate-in relative flex h-full w-72 flex-col">
             <div className="flex h-16 items-center justify-between border-b border-white/10 px-4">
               <div className="flex items-center gap-2.5">
                 <BrandMark brand={brand} />
@@ -115,7 +115,7 @@ export function AdminShell({ user, groups, active, title, description, onNavigat
       )}
 
       <div className="lg:pl-64">
-        <header className="sticky top-0 z-30 border-b border-line bg-white/85 backdrop-blur-xl">
+        <header className="admin-topbar sticky top-0 z-30 border-b border-line bg-white/82 backdrop-blur-xl">
           <div className="flex h-16 items-center gap-3 px-4 sm:px-6">
             <button type="button" onClick={() => setMobileOpen(true)} className="grid size-9 place-items-center rounded-full border border-line lg:hidden" aria-label="Open menu"><Menu size={17} aria-hidden /></button>
             <div className="min-w-0">
@@ -132,7 +132,8 @@ export function AdminShell({ user, groups, active, title, description, onNavigat
             </div>
           </div>
         </header>
-        <main className="mx-auto w-full max-w-[1600px] p-4 sm:p-6 [&>div]:min-h-[calc(100dvh-7rem)]">{children}</main>      </div>
+        <main className="page-enter mx-auto w-full max-w-[1600px] p-4 sm:p-6 [&>div]:min-h-[calc(100dvh-7rem)]">{children}</main>
+      </div>
     </div>
   )
 }

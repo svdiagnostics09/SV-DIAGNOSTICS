@@ -21,7 +21,7 @@ export function StorefrontShell({ settings, children }: { settings: PublicSettin
             Skip to content
           </a>
           <StoreHeader settings={settings} />
-          <main id="main">{children}</main>
+          <main id="main" className="page-enter">{children}</main>
           <StoreFooter settings={settings} />
           <CartDrawer />
           <ProductDetailsModal />

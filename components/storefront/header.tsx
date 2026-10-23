@@ -41,7 +41,7 @@ export function StoreHeader({ settings }: { settings: PublicSettings }) {
         <PromoBar message={settings.announcement} offerLabel="Full body checkup from" offerPrice="₹1,599" />
       )}
 
-      <div className="border-b border-line bg-white/95 backdrop-blur-xl">
+      <div className="store-header-main border-b border-line bg-white/90 backdrop-blur-xl">
         <div className="container-x flex h-16 items-center gap-2 sm:gap-4">
           <button
             type="button"
@@ -65,7 +65,7 @@ export function StoreHeader({ settings }: { settings: PublicSettings }) {
                 key={item.href}
                 href={item.href}
                 aria-current={isActive(item.href) ? 'page' : undefined}
-                className={`whitespace-nowrap rounded-full px-3 py-2 text-[13.5px] font-medium transition ${isActive(item.href) ? 'bg-mint-50 text-mint-700' : 'text-ink hover:bg-section'
+                className={`store-nav-link whitespace-nowrap rounded-full px-3 py-2 text-[13.5px] font-medium transition ${isActive(item.href) ? 'bg-mint-50 text-mint-700' : 'text-ink hover:bg-section'
                   }`}
               >
                 {item.label}
@@ -91,7 +91,7 @@ export function StoreHeader({ settings }: { settings: PublicSettings }) {
             <button
               type="button"
               onClick={openCart}
-              className="relative grid size-10 place-items-center rounded-full border border-line text-forest transition hover:border-green hover:text-green"
+              className="relative grid size-10 place-items-center rounded-full border border-line bg-white/80 text-forest shadow-[0_4px_12px_-10px_rgba(14,76,69,0.6)] transition hover:-translate-y-0.5 hover:border-green hover:text-green"
               aria-label={`Open cart${cart.count ? `, ${cart.count} item${cart.count === 1 ? '' : 's'}` : ', empty'}`}
             >
               <ShoppingBag size={17} aria-hidden />
@@ -110,7 +110,7 @@ export function StoreHeader({ settings }: { settings: PublicSettings }) {
       </div>
 
       {menuOpen && (
-        <div id="store-mobile-nav" className="fixed inset-0 z-50 bg-white lg:hidden">
+        <div id="store-mobile-nav" className="animate-in fixed inset-0 z-50 bg-white lg:hidden">
           <div className="flex h-16 items-center justify-between border-b border-line px-4">
             <Logo brandName={settings.brandName} tagline={settings.tagline} logoUrl={settings.logoUrl} size="sm" href={null} />
             <button type="button" onClick={() => setMenuOpen(false)} className="grid size-9 place-items-center rounded-full hover:bg-section" aria-label="Close menu">

@@ -134,40 +134,23 @@ export function PatientReportsPanel({ onToast }: { onToast: (text: string, tone?
     resource.reload()
   }
 
-  const sendApi = async (row: ReportRow) => {
-    if (!row.report) { onToast('Upload the PDF first.', 'error'); return }
-    setSending(row.bookingId)
-    // Sends the branded PDF (logo cover + report) directly through the WhatsApp
-    // Cloud API, so no attachment step is needed.
-    const result = await adminFetch<{ detail: string; recipient: string; branded: boolean }>(
-      '/api/admin/reports/patients?action=send',
-      { method: 'POST', body: { bookingId: row.bookingId } },
-    )
-    setSending(null)
-    if (!result.ok) { onToast(result.error, 'error'); resource.reload(); return }
-    onToast(result.data.branded
-      ? `Sent to ${result.data.recipient} with the branded logo cover.`
-      : `Sent to ${result.data.recipient}. Add a PNG/JPG logo to brand the cover.`)
-    resource.reload()
-  }
-
   const sendManual = async (row: ReportRow) => {
     if (!row.report) { onToast('Upload the PDF first.', 'error'); return }
+    if (!whatsappChatUrl(row.phone, '')) { onToast('The booking has no usable mobile number for WhatsApp.', 'error'); return }
     setSending(row.bookingId)
-    // Same link the API send uses, so the patient has a landing page either way.
-    const link = await adminFetch<{ url: string }>('/api/admin/reports/patients?action=link', { method: 'POST', body: { bookingId: row.bookingId } })
+    // The server creates a one-time patient link and fills the configured
+    // message template. The patient can view or download their original PDF.
+    const link = await adminFetch<{ reportUrl: string; message: string }>('/api/admin/reports/patients?action=link', { method: 'POST', body: { bookingId: row.bookingId } })
     setSending(null)
     if (!link.ok) { onToast(link.error, 'error'); return }
-    const message = `Hello ${row.patientName}, your report for booking ${row.reference} is ready.\n\nDownload it here: ${link.data.url}\n\nThe PDF is attached separately.`
-    // Opens WhatsApp (app on mobile, WhatsApp Web on desktop) on the patient's
-    // chat. Nothing is sent by us: the administrator attaches the PDF and
-    // presses send themselves. The attempt is logged so the console shows it.
-    const opened = openWhatsappChat(row.phone, message)
+    // Opens WhatsApp (app on mobile, WhatsApp Web on desktop) with the
+    // pre-filled template. Nothing is sent until the administrator confirms it.
+    const opened = openWhatsappChat(row.phone, link.data.message)
     if (!opened) { onToast('The booking has no usable mobile number for WhatsApp.', 'error'); return }
     setSending(row.bookingId)
     await adminFetch('/api/admin/reports/patients?action=opened', { method: 'POST', body: { bookingId: row.bookingId } }).catch(() => undefined)
     setSending(null)
-    onToast(`WhatsApp opened for ${row.patientName}. Attach the PDF and press send.`)
+    onToast(`WhatsApp opened for ${row.patientName}. Review the message and press send.`)
     resource.reload()
   }
 
@@ -185,9 +168,9 @@ export function PatientReportsPanel({ onToast }: { onToast: (text: string, tone?
         <div className="flex items-start gap-2.5">
           <Send size={18} className="mt-0.5 text-mint-700" aria-hidden />
           <div>
-            <h2 className="text-[13.5px] font-bold">WhatsApp delivery</h2>
+            <h2 className="text-[13.5px] font-bold">WhatsApp report sharing</h2>
             <p className="max-w-2xl text-[12px] text-muted">
-              Upload a PDF, then choose <b>Send branded</b> to deliver the PDF with your logo on the cover through the WhatsApp API, or <b>Open WhatsApp</b> to send it by hand. Every attempt is logged here.
+              Upload a PDF, then choose <b>Share report link</b> to open WhatsApp with your message template and a secure PDF link. You review and send the message yourself; every sharing action is logged here.
             </p>
           </div>
         </div>
@@ -274,12 +257,8 @@ export function PatientReportsPanel({ onToast }: { onToast: (text: string, tone?
                           <button type="button" onClick={() => pickFile(row, fileInput.current!)} disabled={busy} className="btn btn-outline btn-sm">
                             {uploading === row.bookingId ? <Loader2 size={13} className="animate-spin" aria-hidden /> : <Upload size={13} aria-hidden />} {row.report ? 'Replace' : 'Upload PDF'}
                           </button>
-                          <a href={`/api/admin/reports/patients?brandedPreview=${row.bookingId}`} target="_blank" rel="noopener" className="btn btn-ghost btn-sm" title="Preview the branded PDF the patient will receive">Preview</a>
-                          <button type="button" onClick={() => sendApi(row)} disabled={busy || !row.report} className="btn btn-primary btn-sm" title={row.report ? 'Send the branded PDF through WhatsApp' : 'Upload a PDF first'}>
-                            {sending === row.bookingId ? <Loader2 size={13} className="animate-spin" aria-hidden /> : <Send size={13} aria-hidden />} Send branded
-                          </button>
-                          <button type="button" onClick={() => sendManual(row)} disabled={busy || !row.report} className="btn btn-mint btn-sm" title={row.report ? 'Open the chat and attach the PDF yourself' : 'Upload a PDF first'}>
-                            Open WhatsApp
+                          <button type="button" onClick={() => sendManual(row)} disabled={busy || !row.report} className="btn btn-primary btn-sm" title={row.report ? 'Open WhatsApp with the secure report link and message template' : 'Upload a PDF first'}>
+                            {sending === row.bookingId ? <Loader2 size={13} className="animate-spin" aria-hidden /> : <Send size={13} aria-hidden />} Share report link
                           </button>
                           <button type="button" onClick={() => setOpen(expanded ? null : row.bookingId)} className="btn btn-ghost btn-sm" aria-expanded={expanded} aria-label="Show report history">
                             <ChevronDown size={14} className={expanded ? 'rotate-180 transition' : 'transition'} aria-hidden />
@@ -304,7 +283,7 @@ export function PatientReportsPanel({ onToast }: { onToast: (text: string, tone?
 
       <p className="text-[11.5px] leading-5 text-muted">
         Only PDFs are accepted (checked by file signature, max 20 MB). Sending happens only when you press a send button, and every attempt is logged.
-        Patients cannot download reports from the website.
+        Report links are personal, expire automatically and are revoked when the report is replaced.
       </p>
     </div>
   )
@@ -358,12 +337,18 @@ function ReportHistory({ bookingId, canSend, onChanged, onToast }: {
 
   const resend = async () => {
     if (!detail) return
-    const opened = openWhatsappChat(phone.trim() || bookedPhone, `Hello, your report for booking ${detail.reference} is ready. Please find the PDF attached.`)
-    if (!opened) { onToast('Enter a mobile number with country code (e.g. 91…).', 'error'); return }
+    const recipient = phone.trim() || bookedPhone
+    if (!whatsappChatUrl(recipient, '')) { onToast('Enter a mobile number with country code (e.g. 91…).', 'error'); return }
     setBusy(true)
-    await adminFetch('/api/admin/reports/patients?action=opened', { method: 'POST', body: { bookingId } }).catch(() => undefined)
+    const link = await adminFetch<{ message: string }>('/api/admin/reports/patients?action=link', { method: 'POST', body: { bookingId } })
     setBusy(false)
-    onToast('WhatsApp opened. Attach the PDF and press send.')
+    if (!link.ok) { onToast(link.error, 'error'); return }
+    const opened = openWhatsappChat(recipient, link.data.message)
+    if (!opened) return
+    setBusy(true)
+    await adminFetch('/api/admin/reports/patients?action=opened', { method: 'POST', body: { bookingId, phone: recipient } }).catch(() => undefined)
+    setBusy(false)
+    onToast('WhatsApp opened with the secure report link. Review the message and press send.')
     void load()
     onChanged()
   }
@@ -411,7 +396,7 @@ function ReportHistory({ bookingId, canSend, onChanged, onToast }: {
         {canSend && (
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <input value={phone} onChange={(event) => setPhone(event.target.value.replace(/[^\d+]/g, ''))} placeholder="Different number (optional)" className="input h-9 w-48 py-0 text-[12px]" inputMode="tel" aria-label="Send to a different mobile number" />
-            <button type="button" onClick={resend} disabled={busy} className="btn btn-mint btn-sm">{busy ? <Loader2 size={13} className="animate-spin" aria-hidden /> : <Send size={13} aria-hidden />} Open WhatsApp</button>
+            <button type="button" onClick={resend} disabled={busy} className="btn btn-mint btn-sm">{busy ? <Loader2 size={13} className="animate-spin" aria-hidden /> : <Send size={13} aria-hidden />} Share report link</button>
           </div>
         )}
       </div>

@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { listFaqs } from '@/lib/content'
 import { siteShell } from '@/lib/page-data'
-import { SiteShell } from '@/components/site/site-shell'
+import { StorefrontShell } from '@/components/storefront/storefront-shell'
 import { PageHeader, EmptyState } from '@/components/ui'
 import { HelpCircle } from 'lucide-react'
 
@@ -14,7 +14,7 @@ export default async function FaqPage() {
   const groups = faqs.reduce<Record<string, typeof faqs>>((acc, faq) => { (acc[faq.category] ??= []).push(faq); return acc }, {})
 
   return (
-    <SiteShell settings={settings}>
+    <StorefrontShell settings={settings}>
       <PageHeader title="Frequently Asked Questions" description="Answers configured by our team. If something is missing, contact us and we will add it." breadcrumbs={[{ label: 'Home', href: '/' }, { label: 'FAQ' }]} />
       <div className="container-x max-w-3xl py-8">
         {faqs.length === 0 ? (
@@ -41,6 +41,6 @@ export default async function FaqPage() {
           <Link href="/contact" className="btn btn-primary btn-sm">Contact us</Link>
         </div>
       </div>
-    </SiteShell>
+    </StorefrontShell>
   )
 }

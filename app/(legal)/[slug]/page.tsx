@@ -1,4 +1,6 @@
 import type { Metadata } from 'next'
+import { siteShell } from '@/lib/page-data'
+import { StorefrontShell } from '@/components/storefront/storefront-shell'
 
 /**
  * Config-driven legal pages. Text is written from the business model in the
@@ -56,8 +58,10 @@ export default async function LegalPage({ params }: { params: Promise<{ slug: st
     const { notFound } = await import('next/navigation')
     notFound()
   }
+  const { settings } = await siteShell()
   return (
-    <article className="container-x max-w-3xl py-10">
+    <StorefrontShell settings={settings}>
+      <article className="container-x max-w-3xl py-10">
       <p className="eyebrow">SV Diagnostics</p>
       <h1 className="mt-1 text-[1.9rem] font-bold tracking-[-0.025em]">{page!.title}</h1>
       <p className="mt-3 text-[14px] leading-7 text-muted">{page!.intro}</p>
@@ -71,6 +75,7 @@ export default async function LegalPage({ params }: { params: Promise<{ slug: st
         ))}
       </div>
       <p className="mt-6 text-[12.5px] leading-6 text-muted">This page is provided for transparency about how the platform operates. It is not a substitute for legal advice. Questions can be sent through the <a className="link" href="/contact">contact form</a>.</p>
-    </article>
+      </article>
+    </StorefrontShell>
   )
 }

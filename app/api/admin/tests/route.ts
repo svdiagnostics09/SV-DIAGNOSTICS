@@ -36,7 +36,7 @@ const SELECT = `SELECT t.*, c.name AS category_name, c.slug AS category_slug,
   (SELECT count(*) FROM test_investigations ti WHERE ti.test_id = t.id) AS investigation_count
   FROM diagnostic_tests t LEFT JOIN diagnostic_categories c ON c.id = t.category_id`
 
-export async function listAllTests(includeArchived = true) {
+async function listAllTests(includeArchived = true) {
   const rows = await sql(`${SELECT} ${includeArchived ? '' : "WHERE t.status <> 'archived'"} ORDER BY t.status, t.name`)
   return rows.map(mapTest)
 }

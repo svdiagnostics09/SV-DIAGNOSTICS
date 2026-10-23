@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 import { getBlogPost, listBlogPosts } from '@/lib/content'
 import { formatIndiaTime } from '@/lib/db'
 import { siteShell } from '@/lib/page-data'
-import { SiteShell } from '@/components/site/site-shell'
+import { StorefrontShell } from '@/components/storefront/storefront-shell'
 import { Breadcrumbs } from '@/components/ui'
 
 export const revalidate = 300
@@ -22,7 +22,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
   const others = (await listBlogPosts()).filter((item) => item.slug !== slug).slice(0, 3)
 
   return (
-    <SiteShell settings={settings}>
+    <StorefrontShell settings={settings}>
       <article className="container-x max-w-3xl py-8">
         <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Blog', href: '/blog' }, { label: post.title }]} />
         <header className="mt-4">
@@ -45,6 +45,6 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
           </section>
         )}
       </article>
-    </SiteShell>
+    </StorefrontShell>
   )
 }

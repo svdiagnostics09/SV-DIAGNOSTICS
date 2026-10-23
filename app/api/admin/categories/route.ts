@@ -5,7 +5,7 @@ import { one } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
-export const categorySchema = z.object({
+const categorySchema = z.object({
   name: z.string().trim().min(2, 'Enter a category name.').max(80),
   description: z.string().max(1000).optional().default(''),
   sortOrder: z.number().int().min(0).max(9999).optional().default(0),

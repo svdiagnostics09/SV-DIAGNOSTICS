@@ -23,6 +23,7 @@ export async function GET(request: Request) {
       settings: {
         ...publicSettings(settings),
         whatsappReportsEnabled: settings.whatsappReportsEnabled,
+        whatsappReportMessage: settings.whatsappReportMessage,
         whatsappTemplateName: settings.whatsappTemplateName,
         whatsappTemplateLanguage: settings.whatsappTemplateLanguage,
         whatsappTemplateParam: settings.whatsappTemplateParam,

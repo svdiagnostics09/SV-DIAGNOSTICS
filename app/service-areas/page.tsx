@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { Clock3, Home, MapPin, Phone, IndianRupee } from 'lucide-react'
 import { formatINR } from '@/lib/db'
 import { siteShell } from '@/lib/page-data'
-import { SiteShell } from '@/components/site/site-shell'
+import { StorefrontShell } from '@/components/storefront/storefront-shell'
 import { PageHeader, EmptyState } from '@/components/ui'
 
 export const metadata: Metadata = { title: 'Service Areas', description: 'Home sample collection service areas served by SV Diagnostics in Hyderabad.' }
@@ -14,7 +14,7 @@ export default async function ServiceAreasPage() {
   const active = areas.filter((area) => area.homeCollection)
 
   return (
-    <SiteShell settings={settings}>
+    <StorefrontShell settings={settings}>
       <PageHeader
         title="Service Areas"
         description={`Home sample collection is available only in the areas the laboratory has configured as active in ${settings.city}. Enter your pincode at checkout and we will confirm eligibility before you pay.`}
@@ -59,6 +59,6 @@ export default async function ServiceAreasPage() {
           </div>
         </section>
       </div>
-    </SiteShell>
+    </StorefrontShell>
   )
 }

@@ -4,7 +4,7 @@ import { CheckCircle2, CircleDollarSign, Home, MapPin, MessageSquare, Printer, S
 import { getBookingForConfirmation, STATUS_LABELS } from '@/lib/booking'
 import { formatINR, formatIndiaTime } from '@/lib/db'
 import { siteShell } from '@/lib/page-data'
-import { SiteShell } from '@/components/site/site-shell'
+import { StorefrontShell } from '@/components/storefront/storefront-shell'
 import { Badge } from '@/components/ui'
 
 export const dynamic = 'force-dynamic'
@@ -24,7 +24,7 @@ export default async function ConfirmationPage({ params, searchParams }: { param
   const paid = booking.paymentStatus === 'paid'
 
   return (
-    <SiteShell settings={settings}>
+    <StorefrontShell settings={settings}>
       <div className="container-x max-w-3xl py-10">
         <div className="card p-6 sm:p-8" id="confirmation">
           <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
@@ -87,6 +87,6 @@ export default async function ConfirmationPage({ params, searchParams }: { param
           <p className="mt-4 flex items-start gap-1.5 text-[11.5px] leading-5 text-muted"><ShieldCheck size={13} className="mt-0.5 shrink-0" aria-hidden /> Save this page or the email confirmation. Your booking status updates only when laboratory staff or a verified payment event changes it. <Printer size={13} className="mt-0.5 shrink-0" aria-hidden /><span className="sr-only">Print this page from your browser to keep a copy.</span></p>
         </div>
       </div>
-    </SiteShell>
+    </StorefrontShell>
   )
 }

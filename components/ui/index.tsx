@@ -10,7 +10,7 @@ export function Badge({ tone = 'gray', children, className }: { tone?: 'teal' | 
 
 export function SectionHeading({ eyebrow, title, description, action, className }: { eyebrow?: string; title: string; description?: string; action?: React.ReactNode; className?: string }) {
   return (
-    <div className={cn('flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between', className)}>
+    <div className={cn('motion-rise flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between', className)}>
       <div className="min-w-0">
         {eyebrow && <p className="eyebrow">{eyebrow}</p>}
         <h2 className="mt-1 text-[1.4rem] font-bold leading-tight tracking-[-0.02em] sm:text-[1.7rem]">{title}</h2>
@@ -41,8 +41,8 @@ export function StatCard({ label, value, hint, icon: Icon, tone = 'teal', href }
     </>
   )
   return href
-    ? <Link href={href} className="card block p-4 transition hover:-translate-y-0.5 hover:border-teal/40 hover:shadow-lift">{body}</Link>
-    : <div className="card p-4">{body}</div>
+    ? <Link href={href} className="card card-interactive metric-card block p-4">{body}</Link>
+    : <div className="card metric-card p-4">{body}</div>
 }
 
 export function EmptyState({ icon: Icon, title, description, action }: { icon: LucideIcon; title: string; description?: string; action?: React.ReactNode }) {
@@ -98,11 +98,11 @@ export function Breadcrumbs({ items }: { items: Array<{ label: string; href?: st
 
 export function PageHeader({ title, description, breadcrumbs, children }: { title: string; description?: string; breadcrumbs?: Array<{ label: string; href?: string }>; children?: React.ReactNode }) {
   return (
-    <div className="border-b border-line-soft bg-surface">
+    <div className="page-hero border-b border-line-soft">
       <div className="container-x py-7 sm:py-9">
-        {breadcrumbs && <Breadcrumbs items={breadcrumbs} />}
+        {breadcrumbs && <div className="motion-rise"><Breadcrumbs items={breadcrumbs} /></div>}
         <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
+          <div className="motion-rise motion-delay-1">
             <h1 className="text-[1.8rem] font-bold leading-tight tracking-[-0.025em] sm:text-[2.1rem]">{title}</h1>
             {description && <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">{description}</p>}
           </div>

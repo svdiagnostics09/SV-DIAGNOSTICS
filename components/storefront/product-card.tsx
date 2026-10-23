@@ -21,17 +21,17 @@ export function ProductCard({ product, className }: { product: StoreProduct; cla
   const href = product.kind === 'package' ? `/packages/${product.slug}` : `/tests/${product.slug}`
 
   return (
-    <article className={`group flex h-full flex-col overflow-hidden rounded-card border border-line bg-white shadow-card transition duration-200 hover:-translate-y-1 hover:shadow-lift ${className ?? ''}`}>
+    <article className={`product-card card card-interactive group flex h-full flex-col overflow-hidden ${className ?? ''}`}>
       {/* Gradient header */}
-      <div className="bg-tile-forest px-4 pb-3.5 pt-3.5 text-white">
-        <div className="flex items-start justify-between gap-2">
+      <div className="product-card-band relative overflow-hidden bg-tile-forest px-4 pb-3.5 pt-3.5 text-white">
+        <div className="relative z-10 flex items-start justify-between gap-2">
           <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[10.5px] font-semibold tracking-wide text-white">
             {product.kind === 'package' ? <ShieldCheck size={11} aria-hidden /> : <FlaskConical size={11} aria-hidden />}
             {product.kind === 'package' ? 'Health package' : product.categoryName}
           </span>
           {off > 0 && <span className="rounded-full bg-orange px-2 py-0.5 text-[10.5px] font-bold text-white">{off}% OFF</span>}
         </div>
-        <h3 className="mt-2.5 line-clamp-2 min-h-[2.6rem] text-[15px] font-bold leading-snug text-white">
+        <h3 className="relative z-10 mt-2.5 line-clamp-2 min-h-[2.6rem] text-[15px] font-bold leading-snug text-white">
           <Link href={href} className="hover:underline">{product.name}</Link>
         </h3>
       </div>

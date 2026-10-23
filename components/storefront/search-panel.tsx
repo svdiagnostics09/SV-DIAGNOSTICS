@@ -77,7 +77,7 @@ export function SearchPanel({ initial }: { initial: SearchPayload }) {
     <section className="relative z-30 -mt-6 sm:-mt-8">
       <div className="container-x">
         <div ref={wrapRef} className="relative mx-auto max-w-3xl">
-          <div className="rounded-2xl border border-line bg-white p-2 shadow-float sm:rounded-full sm:p-2">
+          <div className="motion-rise motion-delay-3 rounded-2xl border border-white/80 bg-white/90 p-2 shadow-float backdrop-blur-md sm:rounded-full sm:p-2">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <div className="relative flex-1">
                 <Search size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted" aria-hidden />
@@ -125,7 +125,7 @@ export function SearchPanel({ initial }: { initial: SearchPayload }) {
           </div>
 
           {open && (
-            <div id="hero-search-results" role="listbox" aria-label="Search results" className="absolute inset-x-0 top-[calc(100%+8px)] z-40 overflow-hidden rounded-2xl border border-line bg-white shadow-lift">
+            <div id="hero-search-results" role="listbox" aria-label="Search results" className="animate-in absolute inset-x-0 top-[calc(100%+8px)] z-40 overflow-hidden rounded-2xl border border-line bg-white/95 shadow-lift backdrop-blur-xl">
               <p className="flex items-center justify-between gap-2 border-b border-line-soft px-4 py-2.5 text-[10.5px] font-bold uppercase tracking-[0.1em] text-muted">
                 <span>{query.trim() ? (loading ? 'Searching…' : `Matching ${mode === 'tests' ? 'lab tests' : 'checkups'} in ${city.name}`) : `Popular ${mode === 'tests' ? 'lab tests' : 'checkups'} in ${city.name}`}</span>
                 {loading && <Loader2 size={13} className="animate-spin text-green" aria-hidden />}

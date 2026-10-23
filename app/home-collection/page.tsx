@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { CalendarCheck, ClipboardList, Home, MapPin, ShieldCheck, Stethoscope, Truck, UserCheck } from 'lucide-react'
 import { siteShell } from '@/lib/page-data'
-import { SiteShell } from '@/components/site/site-shell'
+import { StorefrontShell } from '@/components/storefront/storefront-shell'
 import { PageHeader, IconTile } from '@/components/ui'
 import { formatINR } from '@/lib/db'
 
@@ -14,7 +14,7 @@ export default async function HomeCollectionPage() {
   const active = areas.filter((area) => area.homeCollection)
 
   return (
-    <SiteShell settings={settings}>
+    <StorefrontShell settings={settings}>
       <PageHeader
         title="Home Sample Collection"
         description="A trained phlebotomist visits you at a slot you choose. Availability depends on your pincode and whether the selected test can be collected at home."
@@ -93,6 +93,6 @@ export default async function HomeCollectionPage() {
           </div>
         </aside>
       </div>
-    </SiteShell>
+    </StorefrontShell>
   )
 }

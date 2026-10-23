@@ -43,7 +43,7 @@ export interface AdminBooking {
 }
 
 /** Booking list with server-side pagination, search and filters. */
-export async function listBookings(query: { q?: string; status?: string; method?: string; locationId?: number; from?: string; to?: string; page?: number; pageSize?: number }) {
+async function listBookings(query: { q?: string; status?: string; method?: string; locationId?: number; from?: string; to?: string; page?: number; pageSize?: number }) {
   const pageSize = Math.min(100, Math.max(5, query.pageSize ?? 20))
   const page = Math.max(1, query.page ?? 1)
   const where: string[] = []

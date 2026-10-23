@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { Clock3, Mail, MapPin, Phone } from 'lucide-react'
 import { siteShell } from '@/lib/page-data'
-import { SiteShell } from '@/components/site/site-shell'
+import { StorefrontShell } from '@/components/storefront/storefront-shell'
 import { ContactForm } from '@/components/site/contact-form'
 import { PageHeader } from '@/components/ui'
 
@@ -13,7 +13,7 @@ export default async function ContactPage() {
   const subjects = ['General enquiry', 'Test availability', 'Home collection', 'Existing booking', 'Report query', 'Billing']
 
   return (
-    <SiteShell settings={settings}>
+    <StorefrontShell settings={settings}>
       <PageHeader
         title="Contact Us"
         description="Questions about a test, a home visit or an existing booking? Send us a message or call during laboratory hours."
@@ -51,6 +51,6 @@ export default async function ContactPage() {
           </section>
         </aside>
       </div>
-    </SiteShell>
+    </StorefrontShell>
   )
 }

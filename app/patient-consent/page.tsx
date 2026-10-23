@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { siteShell } from '@/lib/page-data'
-import { SiteShell } from '@/components/site/site-shell'
+import { StorefrontShell } from '@/components/storefront/storefront-shell'
 import { PageHeader } from '@/components/ui'
 
 export const metadata: Metadata = { title: 'Patient Consent', description: 'Patient consent and information for diagnostic testing at SV Diagnostics.' }
@@ -19,7 +19,7 @@ const SECTIONS = [
 export default async function PatientConsentPage() {
   const { settings } = await siteShell()
   return (
-    <SiteShell settings={settings}>
+    <StorefrontShell settings={settings}>
       <PageHeader title="Patient Consent Information" description={`Consent version ${settings.consentVersion}. This page mirrors the consent recorded with every booking.`} breadcrumbs={[{ label: 'Home', href: '/' }, { label: 'Patient consent' }]} />
       <div className="container-x max-w-3xl py-8 space-y-4">
         <div className="card p-6">
@@ -34,6 +34,6 @@ export default async function PatientConsentPage() {
         ))}
         <p className="text-[12.5px] text-muted">Questions? <Link href="/contact" className="link">Contact the laboratory</Link> or read our <Link href="/privacy" className="link">privacy policy</Link>.</p>
       </div>
-    </SiteShell>
+    </StorefrontShell>
   )
 }

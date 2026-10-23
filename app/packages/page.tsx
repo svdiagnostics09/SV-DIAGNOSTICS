@@ -4,7 +4,7 @@ import { ArrowRight, CheckCircle2, Home, Package, Timer } from 'lucide-react'
 import { listPackages } from '@/lib/catalogue'
 import { formatINR } from '@/lib/format'
 import { siteShell } from '@/lib/page-data'
-import { SiteShell } from '@/components/site/site-shell'
+import { StorefrontShell } from '@/components/storefront/storefront-shell'
 import { PageHeader, EmptyState } from '@/components/ui'
 
 export const metadata: Metadata = { title: 'Health Packages', description: 'Health check-up packages at SV Diagnostics, Hyderabad, with included tests and package pricing.' }
@@ -14,7 +14,7 @@ export default async function PackagesPage() {
   const [{ settings }, packages] = await Promise.all([siteShell(), listPackages()])
 
   return (
-    <SiteShell settings={settings}>
+    <StorefrontShell settings={settings}>
       <PageHeader
         title="Health Packages"
         description="Curated packages for preventive check-ups. Each package lists exactly which investigations are included; prices and contents are validated by the laboratory."
@@ -57,6 +57,6 @@ export default async function PackagesPage() {
           </div>
         )}
       </div>
-    </SiteShell>
+    </StorefrontShell>
   )
 }

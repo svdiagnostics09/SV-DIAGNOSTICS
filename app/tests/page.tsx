@@ -2,7 +2,7 @@ import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { listCategories, listTests } from '@/lib/catalogue'
 import { siteShell } from '@/lib/page-data'
-import { SiteShell } from '@/components/site/site-shell'
+import { StorefrontShell } from '@/components/storefront/storefront-shell'
 import { TestsBrowser } from '@/components/site/tests-browser'
 import { PageHeader, Skeletons } from '@/components/ui'
 
@@ -25,7 +25,7 @@ export default async function TestsPage({ searchParams }: { searchParams: Promis
   ])
 
   return (
-    <SiteShell settings={settings}>
+    <StorefrontShell settings={settings}>
       <PageHeader
         title="Diagnostic Tests"
         description={`Browse our published catalogue and book a laboratory visit or an eligible home sample collection across ${settings.city}. Prices are shown exactly as configured by the laboratory.`}
@@ -34,6 +34,6 @@ export default async function TestsPage({ searchParams }: { searchParams: Promis
       <Suspense fallback={<div className="container-x py-8"><Skeletons count={6} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" /></div>}>
         <TestsBrowser categories={categories} initial={initial} />
       </Suspense>
-    </SiteShell>
+    </StorefrontShell>
   )
 }

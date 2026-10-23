@@ -6,7 +6,7 @@ import { getTestBySlug, investigationsForTest, listTests } from '@/lib/catalogue
 import { formatINR } from '@/lib/db'
 import { listLocations } from '@/lib/network'
 import { siteShell } from '@/lib/page-data'
-import { SiteShell } from '@/components/site/site-shell'
+import { StorefrontShell } from '@/components/storefront/storefront-shell'
 import { sampleLabel, turnaroundLabel } from '@/lib/labels'
 import { AddToBooking } from '@/components/site/add-to-booking'
 import { TestCard } from '@/components/site/test-card'
@@ -34,7 +34,7 @@ export default async function TestDetailPage({ params }: { params: Promise<{ slu
   const activeLocations = locations
 
   return (
-    <SiteShell settings={settings}>
+    <StorefrontShell settings={settings}>
       <div className="border-b border-line bg-white">
         <div className="container-x py-6">
           <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Diagnostic tests', href: '/tests' }, { label: test.name }]} />
@@ -172,6 +172,6 @@ export default async function TestDetailPage({ params }: { params: Promise<{ slu
           </section>
         )}
       </div>
-    </SiteShell>
+    </StorefrontShell>
   )
 }

@@ -46,6 +46,12 @@ export const DEFAULT_SETTINGS = {
   whatsappReportsEnabled: true,
   /** How long a patient download link stays valid, in days. */
   reportLinkDays: 30,
+  /**
+   * Text pre-filled in the manual WhatsApp send flow. These placeholders are
+   * replaced when a report link is created: {name}, {reference}, {link},
+   * {expiresAt}, and {brand}.
+   */
+  whatsappReportMessage: 'Hello {name},\n\nYour report for booking {reference} is ready. Preview or download the PDF here: {link}\n\nThis secure link expires on {expiresAt}.\n\n{brand}',
   whatsappTemplateName: '',
   whatsappTemplateLanguage: 'en',
   /** Optional first parameter for a custom template; {name} → patient name. */
@@ -84,6 +90,7 @@ export const settingsSchema = z.object({
   faviconUrl: z.union([z.literal(''), z.string().trim().max(500)]).optional(),
   whatsappReportsEnabled: z.boolean(),
   reportLinkDays: z.number().int().min(1).max(180),
+  whatsappReportMessage: z.string().trim().min(1).max(1200),
   whatsappTemplateName: z.string().trim().regex(/^[a-z0-9_]{0,256}$/, 'Use lowercase letters, numbers and underscores (the name shown in Meta).'),
   whatsappTemplateLanguage: z.string().trim().regex(/^[a-z]{2}(_[A-Z]{2})?$/, 'Use a language code such as en or en_US.'),
   whatsappTemplateParam: z.string().trim().max(200),

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { siteShell } from '@/lib/page-data'
-import { SiteShell } from '@/components/site/site-shell'
+import { StorefrontShell } from '@/components/storefront/storefront-shell'
 import { PageHeader } from '@/components/ui'
 
 export const metadata: Metadata = { title: 'About Us', description: 'About SV Diagnostics — a diagnostic laboratory serving Hyderabad.' }
@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: 'About Us', description: 'About SV Di
 export default async function AboutPage() {
   const { settings, locations } = await siteShell()
   return (
-    <SiteShell settings={settings}>
+    <StorefrontShell settings={settings}>
       <PageHeader title="About SV Diagnostics" description={`${settings.tagline} · ${settings.city}, ${settings.state}`} breadcrumbs={[{ label: 'Home', href: '/' }, { label: 'About' }]} />
       <div className="container-x grid gap-8 py-10 lg:grid-cols-[1fr_340px]">
         <div className="space-y-5">
@@ -55,6 +55,6 @@ export default async function AboutPage() {
           </div>
         </aside>
       </div>
-    </SiteShell>
+    </StorefrontShell>
   )
 }
