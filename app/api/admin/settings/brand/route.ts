@@ -1,10 +1,9 @@
-import { mkdir, writeFile } from 'node:fs/promises'
-import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import { guard, jsonError } from '@/lib/auth'
 import { audit } from '@/lib/audit'
 import { getSettings, publicSettings, saveSettings } from '@/lib/settings'
+import { BRAND_ASSETS, deleteBrandAsset, putBrandAsset } from '@/lib/brand-assets'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,9 +22,17 @@ const SIGNATURES: Array<{ ext: string; test: (bytes: Uint8Array) => boolean }> =
 ]
 
 const ASSETS = {
-  logo: { field: 'logoUrl', folder: 'logo' },
-  favicon: { field: 'faviconUrl', folder: 'favicon' },
+  logo: { field: 'logoUrl' },
+  favicon: { field: 'faviconUrl' },
 } as const
+
+const MIME: Record<string, string> = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  webp: 'image/webp',
+  svg: 'image/svg+xml',
+  ico: 'image/x-icon',
+}
 
 /** POST multipart/form-data: { kind: 'logo' | 'favicon', file: File } */
 export async function POST(request: Request) {
@@ -55,12 +62,18 @@ export async function POST(request: Request) {
     }
 
     const asset = ASSETS[kind]
-    const fileName = `${asset.folder}-${randomUUID().slice(0, 12)}.${signature.ext}`
-    const directory = path.join(process.cwd(), 'public', 'uploads', 'brand')
-    await mkdir(directory, { recursive: true })
-    await writeFile(path.join(directory, fileName), bytes)
+    // Stored in Postgres: public/uploads does not survive a Vercel deploy, so a
+    // file written there would 404 after the next release.
+    await putBrandAsset({
+      id: kind,
+      fileName: `${kind}-${randomUUID().slice(0, 8)}.${signature.ext}`,
+      mimeType: MIME[signature.ext] ?? 'application/octet-stream',
+      bytes,
+      actorEmail: admin.email,
+    })
 
-    const url = `/uploads/brand/${fileName}`
+    // The URL is stable (it is served by route), with a version so caches refresh.
+    const url = `${BRAND_ASSETS[kind].url}?v=${Date.now()}`
     const current = await getSettings()
     await saveSettings({ ...current, [asset.field]: url })
     await audit({ actor: admin, action: `settings.upload_${kind}`, entity: 'business_settings', detail: { url }, request })
@@ -80,6 +93,7 @@ export async function DELETE(request: Request) {
     if (kind !== 'logo' && kind !== 'favicon') return Response.json({ error: 'Unknown asset.' }, { status: 400 })
     const asset = ASSETS[kind]
     const current = await getSettings()
+    await deleteBrandAsset(kind)
     await saveSettings({ ...current, [asset.field]: '' })
     await audit({ actor: admin, action: `settings.reset_${kind}`, entity: 'business_settings', request })
     revalidatePath('/', 'layout')

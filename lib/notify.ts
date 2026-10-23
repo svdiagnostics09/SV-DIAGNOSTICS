@@ -16,8 +16,7 @@ export const WHATSAPP_API_VERSION = process.env.WHATSAPP_API_VERSION?.trim() || 
 
 /** Server-side credentials present? (The token is never sent to the browser.) */
 export function whatsappConfigured() {
-  // Reports are sent by hand through wa.me, so no API credentials are needed.
-  return true
+  return Boolean(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID)
 }
 
 /**
@@ -34,14 +33,127 @@ export function whatsappRecipient(phone: string) {
 }
 
 /** Meta rejects template text parameters that contain newlines or tabs. */
+const templateParam = (value: string) => value.replace(/[\r\n\t]+/g, ' ').trim().slice(0, 120) || '-'
 
 /**
- * Report delivery is manual: the admin console opens a wa.me chat with the
- * patient's number and the administrator attaches the PDF themselves. Nothing
- * is sent by this server, so there are no WhatsApp API credentials to configure.
- * Considered "configured" once a valid phone number can be normalised.
+ * Report delivery.
+ *
+ * Two ways to send:
+ *  - **API** (WhatsApp Cloud API): the branded PDF is uploaded to Meta and sent
+ *    as a document, with the logo in the template header. One click, automatic.
+ *  - **Manual** (wa.me): opens the patient's chat in the browser so a staff
+ *    member attaches the PDF and presses send. Works with no setup at all.
+ *
+ * Neither path ever claims delivery it cannot prove: the result is what Meta
+ * returned, or the fact that a chat was opened.
  */
 const configured = () => Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM)
+
+export interface WhatsappOutcome {
+  status: 'sent' | 'failed'
+  detail: string
+  recipient: string
+  providerMessageId: string | null
+}
+
+async function graph(path: string, init: RequestInit) {
+  return fetch(`https://graph.facebook.com/${WHATSAPP_API_VERSION}/${path}`, {
+    ...init,
+    cache: 'no-store',
+    headers: { Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`, ...(init.headers ?? {}) },
+  })
+}
+
+/** Upload a PDF to Meta, returning the media id used to send it as a document. */
+async function uploadDocument(bytes: Uint8Array, fileName: string): Promise<{ mediaId: string } | { error: string }> {
+  const form = new FormData()
+  form.append('messaging_product', 'whatsapp')
+  form.append('type', 'application/pdf')
+  form.append('file', new Blob([new Uint8Array(bytes)], { type: 'application/pdf' }), fileName)
+  try {
+    const response = await graph(`${process.env.WHATSAPP_PHONE_NUMBER_ID}/media`, { method: 'POST', body: form })
+    const payload = (await response.json().catch(() => ({}))) as { id?: string; error?: { message?: string } }
+    if (!response.ok || !payload.id) {
+      return { error: `Media upload failed (${response.status}): ${(payload.error?.message ?? 'unknown error').slice(0, 250)}` }
+    }
+    return { mediaId: payload.id }
+  } catch (error) {
+    return { error: `Media upload failed: ${(error as Error).message.slice(0, 250)}` }
+  }
+}
+
+/**
+ * Send the report PDF to a patient.
+ *
+ * `templateName` empty = a plain document message, which Meta only delivers
+ * inside a 24-hour customer-service window. A template with a **Document**
+ * header (the PDF) and an **Image** header (the logo) works at any time; the
+ * body parameters are patient name and booking reference.
+ */
+export async function sendWhatsappDocument(input: {
+  recipient: string
+  patientName: string
+  reference: string
+  fileName: string
+  bytes: Uint8Array
+  templateName: string
+  templateLanguage: string
+  logoUrl: string | null
+}): Promise<WhatsappOutcome> {
+  const recipient = whatsappRecipient(input.recipient)
+  if (!recipient) return { status: 'failed', detail: 'The booking has no usable mobile number for WhatsApp.', recipient: '', providerMessageId: null }
+  if (!whatsappConfigured()) {
+    return { status: 'failed', detail: 'WhatsApp API is not configured (WHATSAPP_TOKEN / WHATSAPP_PHONE_NUMBER_ID).', recipient, providerMessageId: null }
+  }
+
+  const uploaded = await uploadDocument(input.bytes, input.fileName)
+  if ('error' in uploaded) return { status: 'failed', detail: uploaded.error, recipient, providerMessageId: null }
+
+  const templateName = process.env.WHATSAPP_TEMPLATE_NAME?.trim() || input.templateName
+  const components: unknown[] = templateName
+    ? [
+        { type: 'header', parameters: [{ type: 'document', document: { id: uploaded.mediaId, filename: input.fileName } }] },
+        ...(input.logoUrl ? [{ type: 'header', sub_type: 'image', parameters: [{ type: 'image', image: { link: input.logoUrl } }] }] : []),
+        { type: 'body', parameters: [input.patientName, input.reference].map((text) => ({ type: 'text', text: templateParam(text) })) },
+      ]
+    : []
+
+  const body = templateName
+    ? {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: recipient,
+        type: 'template',
+        template: { name: templateName, language: { code: input.templateLanguage || 'en' }, components },
+      }
+    : {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: recipient,
+        type: 'document',
+        document: { id: uploaded.mediaId, filename: input.fileName, caption: `Report for booking ${input.reference}` },
+      }
+
+  try {
+    const response = await graph(`${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    const payload = (await response.json().catch(() => ({}))) as { messages?: Array<{ id?: string }>; error?: { message?: string } }
+    if (!response.ok) {
+      return { status: 'failed', detail: `WhatsApp responded ${response.status}: ${(payload.error?.message ?? 'unknown error').slice(0, 250)}`, recipient, providerMessageId: null }
+    }
+    return {
+      status: 'sent',
+      detail: `WhatsApp accepted the report${templateName ? ` (template ${templateName})` : ' (document message)'}.`,
+      recipient,
+      providerMessageId: payload.messages?.[0]?.id ?? null,
+    }
+  } catch (error) {
+    return { status: 'failed', detail: (error as Error).message.slice(0, 250), recipient, providerMessageId: null }
+  }
+}
 
 export interface DeliveryOutcome {
   status: 'sent' | 'failed' | 'skipped'

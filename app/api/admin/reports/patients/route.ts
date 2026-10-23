@@ -4,7 +4,10 @@ import { guard, jsonError } from '@/lib/auth'
 import { audit } from '@/lib/audit'
 import { one, sql } from '@/lib/db'
 import { firstIssue } from '@/lib/validation'
-import { whatsappConfigured } from '@/lib/notify'
+import { getSettings } from '@/lib/settings'
+import { sendWhatsappDocument, whatsappConfigured, whatsappRecipient } from '@/lib/notify'
+import { hasLogo, signedBrandUrl } from '@/lib/brand-assets'
+import { buildBrandedReport } from '@/lib/report-pdf'
 import {
   MAX_PDF_BYTES,
   downloadById,
@@ -46,6 +49,37 @@ export async function GET(request: Request) {
       const file = await downloadById(fileId)
       if (!file) return Response.json({ error: 'That report no longer exists.' }, { status: 404 })
       return new Response(new Uint8Array(file.content), { headers: pdfHeaders(file.fileName, file.mimeType) })
+    }
+
+    // The exact file the patient will receive (branded cover + laboratory pages).
+    const previewId = url.searchParams.get('brandedPreview')
+    if (previewId) {
+      if (!z.string().uuid().safeParse(previewId).success) return Response.json({ error: 'Unknown booking.' }, { status: 400 })
+      const settings = await getSettings()
+      const booking = await one<{ reference: string; patient_name: string; phone: string; appointment_date: string; patient_age: number | null; patient_gender: string | null }>(
+        'SELECT reference, patient_name, phone, appointment_date::text AS appointment_date, patient_age, patient_gender FROM bookings WHERE id = $1',
+        [previewId],
+      )
+      if (!booking) return Response.json({ error: 'Booking not found.' }, { status: 404 })
+      const report = await liveReport(previewId)
+      if (!report) return Response.json({ error: 'Upload the report PDF first.' }, { status: 409 })
+      const file = await downloadById(report.id)
+      if (!file) return Response.json({ error: 'That report file could not be read.' }, { status: 404 })
+      const { bytes } = await buildBrandedReport(new Uint8Array(file.content), {
+        brandName: settings.brandName,
+        patientName: booking.patient_name,
+        reference: booking.reference,
+        appointmentDate: booking.appointment_date,
+        patientAge: booking.patient_age,
+        patientGender: booking.patient_gender,
+        phone: booking.phone,
+        supportPhone: settings.supportPhone,
+        city: settings.city,
+        fileName: report.file_name,
+      })
+      return new Response(new Uint8Array(bytes), {
+        headers: { ...pdfHeaders(`preview-${report.file_name}`, 'application/pdf'), 'Content-Disposition': `inline; filename="${report.file_name}"` },
+      })
     }
 
     const bookingId = url.searchParams.get('bookingId')
@@ -153,6 +187,71 @@ export async function POST(request: Request) {
       await audit({ actor: admin, action: 'report.upload', entity: 'patient_reports', entityId: saved.id, detail: { bookingId, reference: booking.reference, fileName, sizeBytes: bytes.length }, request })
       revalidatePath('/admin')
       return Response.json({ id: saved.id, fileName, sizeBytes: bytes.length }, { status: 201 })
+    }
+
+    // Sends the branded report through the WhatsApp Cloud API in one click.
+    if (action === 'send') {
+      const settings = await getSettings()
+      if (!settings.whatsappReportsEnabled) return Response.json({ error: 'WhatsApp report sending is switched off in Business settings.' }, { status: 409 })
+      if (!whatsappConfigured()) {
+        return Response.json({ error: 'WhatsApp API is not configured on the server. Use “Open WhatsApp” to send manually, or add WHATSAPP_TOKEN and WHATSAPP_PHONE_NUMBER_ID.' }, { status: 409 })
+      }
+      const body = z.object({
+        bookingId: z.string().uuid(),
+        phone: z.string().trim().max(20).optional(),
+      }).parse(await request.json().catch(() => null))
+
+      const booking = await one<{ reference: string; patient_name: string; phone: string; appointment_date: string; patient_age: number | null; patient_gender: string | null }>(
+        'SELECT reference, patient_name, phone, appointment_date::text AS appointment_date, patient_age, patient_gender FROM bookings WHERE id = $1',
+        [body.bookingId],
+      )
+      if (!booking) return Response.json({ error: 'Booking not found.' }, { status: 404 })
+      const report = await liveReport(body.bookingId)
+      if (!report) return Response.json({ error: 'Upload the report PDF first, then send it.' }, { status: 409 })
+      const phone = (body.phone ?? '').trim() || booking.phone
+      if (!whatsappRecipient(phone)) return Response.json({ error: 'Enter a mobile number with country code, or fix the number on the booking.' }, { status: 400 })
+
+      const file = await downloadById(report.id)
+      if (!file) return Response.json({ error: 'The report file could not be read. Upload it again.' }, { status: 409 })
+
+      // The logo is drawn into the PDF cover; WhatsApp shows the document, not
+      // our thumbnail, so branding has to travel inside the file itself.
+      const { bytes, branded } = await buildBrandedReport(new Uint8Array(file.content), {
+        brandName: settings.brandName,
+        patientName: booking.patient_name,
+        reference: booking.reference,
+        appointmentDate: booking.appointment_date,
+        patientAge: booking.patient_age,
+        patientGender: booking.patient_gender,
+        phone: booking.phone,
+        supportPhone: settings.supportPhone,
+        city: settings.city,
+        fileName: report.file_name,
+      })
+
+      const outcome = await sendWhatsappDocument({
+        recipient: phone,
+        patientName: booking.patient_name,
+        reference: booking.reference,
+        fileName: report.file_name,
+        bytes,
+        templateName: settings.whatsappTemplateName,
+        templateLanguage: settings.whatsappTemplateLanguage,
+        logoUrl: await hasLogo() ? signedBrandUrl('logo', new URL(request.url).origin) : null,
+      })
+      await recordDelivery({
+        reportId: report.id,
+        bookingId: body.bookingId,
+        recipient: outcome.recipient || phone,
+        status: outcome.status === 'sent' ? 'sent' : 'failed',
+        detail: `${outcome.detail}${branded ? ' Branded PDF cover with logo attached.' : ' Report sent as uploaded (no PNG/JPG logo available for a cover).'}`,
+        providerMessageId: outcome.providerMessageId,
+        actorEmail: admin.email,
+      })
+      await audit({ actor: admin, action: `report.whatsapp_${outcome.status}`, entity: 'patient_reports', entityId: report.id, detail: { reference: booking.reference, recipient: outcome.recipient, branded }, request })
+
+      if (outcome.status === 'failed') return Response.json({ error: outcome.detail }, { status: 502 })
+      return Response.json({ status: 'sent', detail: outcome.detail, recipient: outcome.recipient, branded, providerMessageId: outcome.providerMessageId })
     }
 
     // Records that the administrator opened the patient's WhatsApp chat. The

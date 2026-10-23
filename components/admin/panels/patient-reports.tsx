@@ -134,7 +134,24 @@ export function PatientReportsPanel({ onToast }: { onToast: (text: string, tone?
     resource.reload()
   }
 
-  const send = async (row: ReportRow) => {
+  const sendApi = async (row: ReportRow) => {
+    if (!row.report) { onToast('Upload the PDF first.', 'error'); return }
+    setSending(row.bookingId)
+    // Sends the branded PDF (logo cover + report) directly through the WhatsApp
+    // Cloud API, so no attachment step is needed.
+    const result = await adminFetch<{ detail: string; recipient: string; branded: boolean }>(
+      '/api/admin/reports/patients?action=send',
+      { method: 'POST', body: { bookingId: row.bookingId } },
+    )
+    setSending(null)
+    if (!result.ok) { onToast(result.error, 'error'); resource.reload(); return }
+    onToast(result.data.branded
+      ? `Sent to ${result.data.recipient} with the branded logo cover.`
+      : `Sent to ${result.data.recipient}. Add a PNG/JPG logo to brand the cover.`)
+    resource.reload()
+  }
+
+  const sendManual = async (row: ReportRow) => {
     if (!row.report) { onToast('Upload the PDF first.', 'error'); return }
     // Opens WhatsApp (app on mobile, WhatsApp Web on desktop) on the patient's
     // chat. Nothing is sent by us: the administrator attaches the PDF and
@@ -164,7 +181,7 @@ export function PatientReportsPanel({ onToast }: { onToast: (text: string, tone?
           <div>
             <h2 className="text-[13.5px] font-bold">WhatsApp delivery</h2>
             <p className="max-w-2xl text-[12px] text-muted">
-              Upload a PDF, then press Send on WhatsApp — it opens the patient’s chat (wa.me) in a new tab so you can attach the PDF and press send yourself. Every attempt is logged here.
+              Upload a PDF, then choose <b>Send branded</b> to deliver the PDF with your logo on the cover through the WhatsApp API, or <b>Open WhatsApp</b> to send it by hand. Every attempt is logged here.
             </p>
           </div>
         </div>
@@ -251,8 +268,12 @@ export function PatientReportsPanel({ onToast }: { onToast: (text: string, tone?
                           <button type="button" onClick={() => pickFile(row, fileInput.current!)} disabled={busy} className="btn btn-outline btn-sm">
                             {uploading === row.bookingId ? <Loader2 size={13} className="animate-spin" aria-hidden /> : <Upload size={13} aria-hidden />} {row.report ? 'Replace' : 'Upload PDF'}
                           </button>
-                          <button type="button" onClick={() => send(row)} disabled={busy || !row.report} className="btn btn-mint btn-sm" title={row.report ? undefined : 'Upload a PDF first'}>
-                            {sending === row.bookingId ? <Loader2 size={13} className="animate-spin" aria-hidden /> : <Send size={13} aria-hidden />} Send on WhatsApp
+                          <a href={`/api/admin/reports/patients?brandedPreview=${row.bookingId}`} target="_blank" rel="noopener" className="btn btn-ghost btn-sm" title="Preview the branded PDF the patient will receive">Preview</a>
+                          <button type="button" onClick={() => sendApi(row)} disabled={busy || !row.report} className="btn btn-primary btn-sm" title={row.report ? 'Send the branded PDF through WhatsApp' : 'Upload a PDF first'}>
+                            {sending === row.bookingId ? <Loader2 size={13} className="animate-spin" aria-hidden /> : <Send size={13} aria-hidden />} Send branded
+                          </button>
+                          <button type="button" onClick={() => sendManual(row)} disabled={busy || !row.report} className="btn btn-mint btn-sm" title={row.report ? 'Open the chat and attach the PDF yourself' : 'Upload a PDF first'}>
+                            Open WhatsApp
                           </button>
                           <button type="button" onClick={() => setOpen(expanded ? null : row.bookingId)} className="btn btn-ghost btn-sm" aria-expanded={expanded} aria-label="Show report history">
                             <ChevronDown size={14} className={expanded ? 'rotate-180 transition' : 'transition'} aria-hidden />
@@ -276,7 +297,7 @@ export function PatientReportsPanel({ onToast }: { onToast: (text: string, tone?
       </div>
 
       <p className="text-[11.5px] leading-5 text-muted">
-        Only PDFs are accepted (checked by file signature, max 20 MB). Sending happens only when you press <b>Send on WhatsApp</b>, and every attempt is logged.
+        Only PDFs are accepted (checked by file signature, max 20 MB). Sending happens only when you press a send button, and every attempt is logged.
         Patients cannot download reports from the website.
       </p>
     </div>

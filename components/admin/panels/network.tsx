@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { MapPin, Plus, Trash2, CalendarClock } from 'lucide-react'
+import { LocationMap, directionsUrl } from '@/components/admin/location-map'
 import { adminFetch, useAdminResource } from '@/components/admin/fetch'
 import { formatINR } from '@/lib/format'
 import { Modal } from '@/components/admin/panels/catalogue-support'
@@ -54,8 +55,9 @@ export function LocationsPanel({ onToast }: { onToast: Toast }) {
               </div>
               <span className={`badge ${row.isActive ? 'badge-green' : 'badge-gray'}`}>{row.isActive ? 'Active' : 'Inactive'}</span>
             </div>
-            <div className="mt-3 flex gap-1.5">
+            <div className="mt-3 flex flex-wrap gap-1.5">
               <button type="button" onClick={() => { setError(null); setDraft(row) }} className="btn btn-outline btn-sm">Edit</button>
+              <a href={directionsUrl(row)} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm">Directions</a>
               <button type="button" onClick={() => toggle(row)} className="btn btn-ghost btn-sm">{row.isActive ? 'Deactivate' : 'Activate'}</button>
             </div>
           </article>
@@ -75,7 +77,15 @@ export function LocationsPanel({ onToast }: { onToast: Toast }) {
               <div><label htmlFor="loc-phone" className="label">Phone</label><input id="loc-phone" className="input" value={draft.phone ?? ''} onChange={(event) => setDraft({ ...draft, phone: event.target.value })} /></div>
               <div><label htmlFor="loc-email" className="label">Email</label><input id="loc-email" className="input" value={draft.email ?? ''} onChange={(event) => setDraft({ ...draft, email: event.target.value })} /></div>
               <div className="sm:col-span-2"><label htmlFor="loc-hours" className="label">Opening hours</label><input id="loc-hours" className="input" value={draft.openingHours ?? ''} onChange={(event) => setDraft({ ...draft, openingHours: event.target.value })} placeholder="Mon–Sat 7:00 AM – 8:00 PM" /></div>
-              <div className="sm:col-span-2"><label htmlFor="loc-maps" className="label">Directions link</label><input id="loc-maps" className="input" value={draft.mapsUrl ?? ''} onChange={(event) => setDraft({ ...draft, mapsUrl: event.target.value })} placeholder="https://maps.google.com/…" /></div>
+              <div className="sm:col-span-2">
+                <label htmlFor="loc-maps" className="label">Directions link (optional)</label>
+                <input id="loc-maps" className="input" value={draft.mapsUrl ?? ''} onChange={(event) => setDraft({ ...draft, mapsUrl: event.target.value })} placeholder="https://maps.app.goo.gl/…" />
+                <p className="mt-1 text-[11px] text-muted">Paste the Google Maps share link for the exact shop entrance. Directions use it when set, otherwise the address above.</p>
+              </div>
+              <div className="sm:col-span-2">
+                <span className="label">Map preview</span>
+                <LocationMap location={{ name: draft.name ?? '', addressLine1: draft.addressLine1, addressLine2: draft.addressLine2, area: draft.area, city: draft.city, pincode: draft.pincode, mapsUrl: draft.mapsUrl }} />
+              </div>
               <div className="sm:col-span-2"><label htmlFor="loc-services" className="label">Services (comma separated)</label><input id="loc-services" className="input" value={(draft.services ?? []).join(', ')} onChange={(event) => setDraft({ ...draft, services: event.target.value.split(',').map((item) => item.trim()).filter(Boolean) })} /></div>
             </div>
             <label className="mt-3 flex items-center gap-2 text-[12.5px]"><input type="checkbox" checked={draft.isActive ?? true} onChange={(event) => setDraft({ ...draft, isActive: event.target.checked })} className="size-4 accent-[#20A99C]" /> Active (accepts bookings)</label>
