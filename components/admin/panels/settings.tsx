@@ -12,7 +12,7 @@ interface SettingsResponse {
     collectionFeePaise: number; bookingHorizonDays: number; slotHoldMinutes: number; payAtLabEnabled: boolean
     payAtHomeEnabled: boolean; cancellationWindowHours: number; consentVersion: string; patientConsentText: string; bookingTermsText: string
     city: string; state: string; logoUrl: string; faviconUrl: string
-    whatsappReportsEnabled: boolean; whatsappTemplateName: string; whatsappTemplateLanguage: string; whatsappTemplateParam: string
+    whatsappReportsEnabled: boolean; whatsappTemplateName: string; whatsappTemplateLanguage: string; whatsappTemplateParam: string; reportLinkDays: number
   }
   internal: { bookingHorizonDays: number; slotHoldMinutes: number; whatsappConfigured: boolean }
   admins: Array<{ id: string; email: string; name: string; role: string; isActive: boolean; lastLoginAt: string | null }>
@@ -133,6 +133,9 @@ function WhatsappSection({ form, configured, set }: {
         </Field>
         <Field label="Template language" id="s-wa-lang" hint="The code shown in Meta, e.g. en or en_US.">
           <input id="s-wa-lang" className="input" value={form.whatsappTemplateLanguage} onChange={(event) => set('whatsappTemplateLanguage', event.target.value.replace(/[^a-z_]/g, ''))} />
+        </Field>
+        <Field label="Report link valid for (days)" id="s-report-link" hint="How long the patient's download link keeps working after it is sent.">
+          <input id="s-report-link" className="input" inputMode="numeric" value={String(form.reportLinkDays)} onChange={(event) => set('reportLinkDays', Math.min(180, Math.max(1, Number(event.target.value.replace(/\D/g, '') || 30))))} />
         </Field>
       </div>
       <label className="mt-3 flex items-center gap-2 text-[12.5px]"><input type="checkbox" checked={form.whatsappReportsEnabled} onChange={(event) => set("whatsappReportsEnabled", event.target.checked)} className="size-4 accent-[#00B98B]" /> Allow WhatsApp report sending from the admin panel</label>

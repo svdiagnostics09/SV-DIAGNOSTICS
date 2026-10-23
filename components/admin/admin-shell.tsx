@@ -7,12 +7,27 @@ import type { LucideIcon } from 'lucide-react'
 
 export interface NavGroup { label: string; items: Array<{ key: string; label: string; icon: LucideIcon; badge?: number }> }
 
+/** Logo tile for the sidebar: the uploaded logo, or the built-in initials mark. */
+function BrandMark({ brand }: { brand: { brandName: string; logoUrl: string } }) {
+  if (brand.logoUrl) {
+    return (
+      <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-[10px] bg-white p-1">
+        {/* eslint-disable-next-line @next/next/no-img-element -- uploaded logos vary in aspect ratio */}
+        <img src={brand.logoUrl} alt={`${brand.brandName} logo`} className="size-full object-contain" />
+      </span>
+    )
+  }
+  const initials = brand.brandName.split(/\s+/).map((word) => word[0]).join('').slice(0, 2).toUpperCase() || 'SV'
+  return <span className="grid size-9 place-items-center rounded-[10px] bg-orange text-[13px] font-extrabold text-white">{initials}</span>
+}
+
 /**
  * Admin shell: fixed navy sidebar (desktop), white header with page title,
  * signed-in email, View Site and Logout — matching the reference dashboard.
  */
-export function AdminShell({ user, groups, active, title, description, onNavigate, onRefresh, refreshing, children, mobileOpen, setMobileOpen }: {
+export function AdminShell({ user, groups, active, title, description, onNavigate, onRefresh, refreshing, children, mobileOpen, setMobileOpen, brand }: {
   user: AdminUser
+  brand: { brandName: string; logoUrl: string }
   groups: NavGroup[]
   active: string
   title: string
@@ -67,9 +82,9 @@ export function AdminShell({ user, groups, active, title, description, onNavigat
       {/* Sidebar — desktop */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col bg-band-forest lg:flex">
         <div className="flex h-16 items-center gap-2.5 border-b border-white/10 px-4">
-          <span className="grid size-9 place-items-center rounded-[10px] bg-orange text-[13px] font-extrabold text-white">SV</span>
-          <div>
-            <b className="block text-[14px] font-bold leading-tight text-white">SV Diagnostics</b>
+          <BrandMark brand={brand} />
+          <div className="min-w-0">
+            <b className="block truncate text-[14px] font-bold leading-tight text-white">{brand.brandName}</b>
             <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/45">Admin Panel</span>
           </div>
         </div>
@@ -89,8 +104,8 @@ export function AdminShell({ user, groups, active, title, description, onNavigat
           <aside className="relative flex h-full w-72 flex-col bg-band-forest">
             <div className="flex h-16 items-center justify-between border-b border-white/10 px-4">
               <div className="flex items-center gap-2.5">
-                <span className="grid size-9 place-items-center rounded-[10px] bg-orange text-[13px] font-extrabold text-white">SV</span>
-                <div><b className="block text-[14px] font-bold text-white">SV Diagnostics</b><span className="text-[10px] uppercase tracking-[0.14em] text-white/45">Admin Panel</span></div>
+                <BrandMark brand={brand} />
+                <div className="min-w-0"><b className="block truncate text-[14px] font-bold text-white">{brand.brandName}</b><span className="text-[10px] uppercase tracking-[0.14em] text-white/45">Admin Panel</span></div>
               </div>
               <button type="button" onClick={() => setMobileOpen(false)} className="grid size-8 place-items-center rounded-md text-white/70 hover:bg-white/10" aria-label="Close menu"><X size={17} aria-hidden /></button>
             </div>

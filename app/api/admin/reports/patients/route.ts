@@ -10,6 +10,7 @@ import { hasLogo, signedBrandUrl } from '@/lib/brand-assets'
 import { buildBrandedReport } from '@/lib/report-pdf'
 import {
   MAX_PDF_BYTES,
+  createShareLink,
   downloadById,
   liveReport,
   looksLikePdf,
@@ -23,6 +24,10 @@ import {
 export const dynamic = 'force-dynamic'
 /** Uploading a 20 MB PDF needs headroom beyond the platform default. */
 export const maxDuration = 60
+
+/** Absolute origin for patient links, so they work from any device. */
+const absoluteUrl = (path: string, request: Request) =>
+  `${(process.env.NEXT_PUBLIC_SITE_URL?.trim() || new URL(request.url).origin).replace(/\/$/, '')}${path}`
 
 /**
  * Patient reports — everything an administrator needs to hand a PDF to a patient
@@ -214,6 +219,11 @@ export async function POST(request: Request) {
       const file = await downloadById(report.id)
       if (!file) return Response.json({ error: 'The report file could not be read. Upload it again.' }, { status: 409 })
 
+      // A link the patient can open on any device later, not just the chat.
+      const share = await createShareLink(report.id, settings.reportLinkDays)
+      const shareLink = absoluteUrl(share.url, request)
+      const patientLink = shareLink
+
       // The logo is drawn into the PDF cover; WhatsApp shows the document, not
       // our thumbnail, so branding has to travel inside the file itself.
       const { bytes, branded } = await buildBrandedReport(new Uint8Array(file.content), {
@@ -238,6 +248,8 @@ export async function POST(request: Request) {
         templateName: settings.whatsappTemplateName,
         templateLanguage: settings.whatsappTemplateLanguage,
         logoUrl: await hasLogo() ? signedBrandUrl('logo', new URL(request.url).origin) : null,
+        patientLink,
+        caption: `Report for booking ${booking.reference}. Download: ${shareLink}`,
       })
       await recordDelivery({
         reportId: report.id,
@@ -251,7 +263,20 @@ export async function POST(request: Request) {
       await audit({ actor: admin, action: `report.whatsapp_${outcome.status}`, entity: 'patient_reports', entityId: report.id, detail: { reference: booking.reference, recipient: outcome.recipient, branded }, request })
 
       if (outcome.status === 'failed') return Response.json({ error: outcome.detail }, { status: 502 })
-      return Response.json({ status: 'sent', detail: outcome.detail, recipient: outcome.recipient, branded, providerMessageId: outcome.providerMessageId })
+      return Response.json({ status: 'sent', detail: outcome.detail, recipient: outcome.recipient, branded, link: shareLink, expiresAt: share.expiresAt, providerMessageId: outcome.providerMessageId })
+    }
+
+    // Creates the patient's download link. Used by the manual wa.me flow, so the
+    // pre-filled message carries the same link the API send would.
+    if (action === 'link') {
+      const body = z.object({ bookingId: z.string().uuid() }).parse(await request.json().catch(() => null))
+      const settings = await getSettings()
+      const report = await liveReport(body.bookingId)
+      if (!report) return Response.json({ error: 'Upload the report PDF first.' }, { status: 409 })
+      const share = await createShareLink(report.id, settings.reportLinkDays)
+      const url = absoluteUrl(share.url, request)
+      await audit({ actor: admin, action: 'report.link_created', entity: 'patient_reports', entityId: report.id, detail: { bookingId: body.bookingId, expiresAt: share.expiresAt }, request })
+      return Response.json({ url, path: share.url, expiresAt: share.expiresAt })
     }
 
     // Records that the administrator opened the patient's WhatsApp chat. The
@@ -268,7 +293,7 @@ export async function POST(request: Request) {
         bookingId: body.bookingId,
         recipient: booking.phone,
         status: 'sent',
-        detail: `Opened WhatsApp chat for ${booking.phone}; the administrator attached ${report.file_name} and sent it manually.`,
+        detail: `Opened WhatsApp chat for ${booking.phone}; the administrator attaches ${report.file_name} and sends it manually (with a download link).`,
         providerMessageId: null,
         actorEmail: admin.email,
       })

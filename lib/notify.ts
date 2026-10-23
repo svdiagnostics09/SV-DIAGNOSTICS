@@ -99,6 +99,9 @@ export async function sendWhatsappDocument(input: {
   templateName: string
   templateLanguage: string
   logoUrl: string | null
+  /** Download link included in the message body / document caption. */
+  patientLink: string | null
+  caption: string
 }): Promise<WhatsappOutcome> {
   const recipient = whatsappRecipient(input.recipient)
   if (!recipient) return { status: 'failed', detail: 'The booking has no usable mobile number for WhatsApp.', recipient: '', providerMessageId: null }
@@ -131,7 +134,7 @@ export async function sendWhatsappDocument(input: {
         recipient_type: 'individual',
         to: recipient,
         type: 'document',
-        document: { id: uploaded.mediaId, filename: input.fileName, caption: `Report for booking ${input.reference}` },
+        document: { id: uploaded.mediaId, filename: input.fileName, caption: input.caption.slice(0, 1024) },
       }
 
   try {
@@ -144,9 +147,25 @@ export async function sendWhatsappDocument(input: {
     if (!response.ok) {
       return { status: 'failed', detail: `WhatsApp responded ${response.status}: ${(payload.error?.message ?? 'unknown error').slice(0, 250)}`, recipient, providerMessageId: null }
     }
+
+    // A template body is fixed text, so the link travels as a follow-up message.
+    if (templateName && input.patientLink) {
+      await graph(`${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: recipient,
+          type: 'text',
+          text: { preview_url: true, body: `Download your report: ${input.patientLink}` },
+        }),
+      }).catch(() => undefined)
+    }
+
     return {
       status: 'sent',
-      detail: `WhatsApp accepted the report${templateName ? ` (template ${templateName})` : ' (document message)'}.`,
+      detail: `WhatsApp accepted the report${templateName ? ` (template ${templateName})` : ' (document message)'}${input.patientLink ? ' with a download link' : ''}.`,
       recipient,
       providerMessageId: payload.messages?.[0]?.id ?? null,
     }

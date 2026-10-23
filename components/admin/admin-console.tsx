@@ -59,7 +59,7 @@ const TITLES: Record<string, { title: string; description: string }> = {
   audit: { title: 'Audit Log', description: 'Every sensitive action, newest first' },
 }
 
-export function AdminConsole({ user, dashboard, bookings }: { user: AdminUser; dashboard: Record<string, unknown> | null; bookings: unknown }) {
+export function AdminConsole({ user, dashboard, bookings, brand }: { user: AdminUser; dashboard: Record<string, unknown> | null; bookings: unknown; brand: { brandName: string; logoUrl: string } }) {
   const router = useRouter()
   const [active, setActive] = useState('dashboard')
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -123,6 +123,7 @@ export function AdminConsole({ user, dashboard, bookings }: { user: AdminUser; d
     <>
       <AdminShell
         user={user}
+        brand={brand}
         groups={groups}
         active={active}
         title={meta.title}

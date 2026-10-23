@@ -44,6 +44,8 @@ export const DEFAULT_SETTINGS = {
    * template name = send plain text (works inside a 24h customer window).
    */
   whatsappReportsEnabled: true,
+  /** How long a patient download link stays valid, in days. */
+  reportLinkDays: 30,
   whatsappTemplateName: '',
   whatsappTemplateLanguage: 'en',
   /** Optional first parameter for a custom template; {name} → patient name. */
@@ -52,7 +54,7 @@ export const DEFAULT_SETTINGS = {
 
 type SettingsShape = typeof DEFAULT_SETTINGS
 
-export type BusinessSettings = { [K in keyof SettingsShape]: K extends 'announcementEnabled' | 'collectionEnabled' | 'payAtLabEnabled' | 'payAtHomeEnabled' | 'whatsappReportsEnabled' ? boolean : K extends 'collectionFeePaise' | 'bookingHorizonDays' | 'slotHoldMinutes' | 'cancellationWindowHours' ? number : string }
+export type BusinessSettings = { [K in keyof SettingsShape]: K extends 'announcementEnabled' | 'collectionEnabled' | 'payAtLabEnabled' | 'payAtHomeEnabled' | 'whatsappReportsEnabled' ? boolean : K extends 'collectionFeePaise' | 'bookingHorizonDays' | 'slotHoldMinutes' | 'cancellationWindowHours' | 'reportLinkDays' ? number : string }
 
 export const settingsSchema = z.object({
   brandName: z.string().trim().min(2).max(80),
@@ -81,6 +83,7 @@ export const settingsSchema = z.object({
   logoUrl: z.union([z.literal(''), z.string().trim().max(500)]).optional(),
   faviconUrl: z.union([z.literal(''), z.string().trim().max(500)]).optional(),
   whatsappReportsEnabled: z.boolean(),
+  reportLinkDays: z.number().int().min(1).max(180),
   whatsappTemplateName: z.string().trim().regex(/^[a-z0-9_]{0,256}$/, 'Use lowercase letters, numbers and underscores (the name shown in Meta).'),
   whatsappTemplateLanguage: z.string().trim().regex(/^[a-z]{2}(_[A-Z]{2})?$/, 'Use a language code such as en or en_US.'),
   whatsappTemplateParam: z.string().trim().max(200),

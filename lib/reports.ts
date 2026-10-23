@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import { one, sql } from '@/lib/db'
 
 /**
@@ -75,7 +75,8 @@ export async function saveReport(input: {
   actorId: string
   actorEmail: string
 }): Promise<{ id: string; fileName: string }> {
-  await sql('UPDATE patient_reports SET revoked_at = now() WHERE booking_id = $1 AND revoked_at IS NULL', [input.bookingId])
+  // A replacement report makes any link already sent to the patient stale.
+  await sql('UPDATE patient_reports SET revoked_at = now(), share_token_hash = NULL, share_token_expires_at = NULL WHERE booking_id = $1 AND revoked_at IS NULL', [input.bookingId])
   const address = Buffer.from(input.bytes)
   const row = await one<{ id: string; file_name: string }>(
     `INSERT INTO patient_reports (booking_id, file_name, mime_type, size_bytes, content, sha256, uploaded_by, uploaded_by_email)
@@ -195,4 +196,66 @@ export function pdfHeaders(fileName: string, mimeType: string) {
     'X-Content-Type-Options': 'nosniff',
     'Referrer-Policy': 'no-referrer',
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Shareable report link                                               */
+/* ------------------------------------------------------------------ */
+
+export interface SharedReport {
+  fileName: string
+  mimeType: string
+  content: Buffer
+  reference: string
+  patientName: string
+  expiresAt: string
+}
+
+/**
+ * Create (or refresh) a download link for a report.
+ *
+ * The token is 32 random bytes, returned exactly once and never stored: only
+ * its SHA-256 hash is kept. Links are for the patient, so they are generous but
+ * limited — 30 days by default — and replaced whenever a new report is sent.
+ */
+export async function createShareLink(reportId: string, days = 30): Promise<{ url: string; expiresAt: string }> {
+  const token = randomBytes(32).toString('base64url')
+  const expiresAt = new Date(Date.now() + days * 86_400_000)
+  await sql(
+    `UPDATE patient_reports
+     SET share_token_hash = $2, share_token_expires_at = $3, share_token_created_at = now()
+     WHERE id = $1`,
+    [reportId, sha256(new TextEncoder().encode(token)), expiresAt.toISOString()],
+  )
+  return { url: `/report/${token}`, expiresAt: expiresAt.toISOString() }
+}
+
+/** Resolve a token to the live report, or null when it is unknown/expired. */
+export async function findReportByToken(token: string) {
+  if (token.length < 20 || token.length > 120) return null
+  const row = await one<Record<string, unknown>>(
+    `SELECT id, booking_id, file_name, mime_type, share_token_expires_at
+     FROM patient_reports
+     WHERE share_token_hash = $1 AND revoked_at IS NULL
+       AND (share_token_expires_at IS NULL OR share_token_expires_at > now())`,
+    [sha256(new TextEncoder().encode(token))],
+  )
+  if (!row) return null
+  return {
+    id: String(row.id),
+    bookingId: String(row.booking_id),
+    fileName: String(row.file_name),
+    mimeType: String(row.mime_type ?? REPORT_MIME),
+    expiresAt: row.share_token_expires_at ? new Date(row.share_token_expires_at as string).toISOString() : null,
+  }
+}
+
+/** Count a patient download (audit trail for the admin console). */
+export async function recordShareDownload(reportId: string) {
+  await sql('UPDATE patient_reports SET downloads = downloads + 1, last_downloaded_at = now() WHERE id = $1', [reportId])
+}
+
+/** Revoke every link for a booking (used when a report is replaced). */
+export async function revokeShareLinks(bookingId: string) {
+  await sql('UPDATE patient_reports SET share_token_hash = NULL, share_token_expires_at = NULL WHERE booking_id = $1', [bookingId])
 }

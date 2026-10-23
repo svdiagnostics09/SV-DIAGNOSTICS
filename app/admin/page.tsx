@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { currentAdmin } from '@/lib/auth'
+import { getSettings } from '@/lib/settings'
 import { sql } from '@/lib/db'
 import { AdminConsole } from '@/components/admin/admin-console'
 
@@ -31,5 +32,6 @@ export default async function AdminPage() {
     console.error('[admin] initial data failed', error)
   }
 
-  return <AdminConsole user={user} dashboard={dashboard} bookings={bookings} />
+  const brand = await getSettings()
+  return <AdminConsole user={user} dashboard={dashboard} bookings={bookings} brand={{ brandName: brand.brandName, logoUrl: brand.logoUrl }} />
 }

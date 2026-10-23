@@ -153,10 +153,16 @@ export function PatientReportsPanel({ onToast }: { onToast: (text: string, tone?
 
   const sendManual = async (row: ReportRow) => {
     if (!row.report) { onToast('Upload the PDF first.', 'error'); return }
+    setSending(row.bookingId)
+    // Same link the API send uses, so the patient has a landing page either way.
+    const link = await adminFetch<{ url: string }>('/api/admin/reports/patients?action=link', { method: 'POST', body: { bookingId: row.bookingId } })
+    setSending(null)
+    if (!link.ok) { onToast(link.error, 'error'); return }
+    const message = `Hello ${row.patientName}, your report for booking ${row.reference} is ready.\n\nDownload it here: ${link.data.url}\n\nThe PDF is attached separately.`
     // Opens WhatsApp (app on mobile, WhatsApp Web on desktop) on the patient's
     // chat. Nothing is sent by us: the administrator attaches the PDF and
     // presses send themselves. The attempt is logged so the console shows it.
-    const opened = openWhatsappChat(row.phone, `Hello ${row.patientName}, your ${row.report.fileName} report for booking ${row.reference} is ready. Please find the PDF attached.`)
+    const opened = openWhatsappChat(row.phone, message)
     if (!opened) { onToast('The booking has no usable mobile number for WhatsApp.', 'error'); return }
     setSending(row.bookingId)
     await adminFetch('/api/admin/reports/patients?action=opened', { method: 'POST', body: { bookingId: row.bookingId } }).catch(() => undefined)
