@@ -84,8 +84,20 @@ function fit(text: string, font: PDFFont, size: number, maxWidth: number) {
   if (maxWidth <= 0) return ''
   if (font.widthOfTextAtSize(text, size) <= maxWidth) return text
   let clipped = text
-  while (clipped.length > 1 && font.widthOfTextAtSize(`${clipped}…`, size) > maxWidth) clipped = clipped.slice(0, -1)
-  return `${clipped}…`
+  while (clipped.length > 1 && font.widthOfTextAtSize(`${clipped}\u2026`, size) > maxWidth) clipped = clipped.slice(0, -1)
+  return `${clipped}\u2026`
+}
+
+/** Like fit(), but shrinks the type down to `minSize` before clipping. */
+function fitShrink(text: string, font: PDFFont, size: number, minSize: number, maxWidth: number) {
+  if (maxWidth <= 0) return { text: '', size }
+  if (font.widthOfTextAtSize(text, size) <= maxWidth) return { text, size }
+  let current = size
+  while (current > minSize) {
+    current -= 0.25
+    if (font.widthOfTextAtSize(text, current) <= maxWidth) return { text, size: current }
+  }
+  return { text: fit(text, font, minSize, maxWidth), size: minSize }
 }
 
 /** Greedy word wrap, capped so a long item name cannot push the table off the page. */
@@ -144,7 +156,11 @@ export async function buildInvoice(details: InvoiceDetails): Promise<Uint8Array>
   if (brandLine) page.drawText(fit(brandLine, regular, 9, width / 2 - brandX), { x: brandX, y: height - 65, size: 9, font: regular, color: MUTED })
   if (details.address) page.drawText(fit(details.address, regular, 8.5, width / 2 - brandX), { x: brandX, y: height - 79, size: 8.5, font: regular, color: MUTED })
   const contact = [details.supportPhone, details.supportEmail].filter(Boolean).join('  ·  ')
-  if (contact) page.drawText(fit(contact, regular, 8.5, width / 2 - brandX), { x: brandX, y: height - 93, size: 8.5, font: regular, color: MUTED })
+  if (contact) {
+    // The email must stay complete — shrink the line before clipping it.
+    const drawn = fitShrink(contact, regular, 8.5, 7, width / 2 - brandX)
+    page.drawText(drawn.text, { x: brandX, y: height - 93, size: drawn.size, font: regular, color: MUTED })
+  }
   if (details.gstin) page.drawText(`GSTIN ${details.gstin}`, { x: brandX, y: height - 107, size: 8.5, font: regular, color: MUTED })
 
   // Invoice title, right aligned.
@@ -184,8 +200,15 @@ export async function buildInvoice(details: InvoiceDetails): Promise<Uint8Array>
 
   const rows = Math.max(billLines.length, collectionLines.length)
   for (let index = 0; index < rows; index += 1) {
-    if (billLines[index]) page.drawText(fit(billLines[index], index === 0 ? bold : regular, 9.5, columnWidth), { x: MARGIN, y, size: 9.5, font: index === 0 ? bold : regular, color: index === 0 ? INK : MUTED })
-    if (collectionLines[index]) page.drawText(fit(collectionLines[index], regular, 9.5, columnWidth), { x: rightColumnX, y, size: 9.5, font: regular, color: MUTED })
+    if (billLines[index]) {
+      const drawn = index === 0 ? { text: fit(billLines[index], bold, 9.5, columnWidth), size: 9.5 } : fitShrink(billLines[index], regular, 9.5, 7.5, columnWidth)
+      page.drawText(drawn.text, { x: MARGIN, y, size: drawn.size, font: index === 0 ? bold : regular, color: index === 0 ? INK : MUTED })
+    }
+    if (collectionLines[index]) {
+      // Addresses and emails should not lose their tail to a "…"; shrink first.
+      const drawn = fitShrink(collectionLines[index], regular, 9.5, 7.5, columnWidth)
+      page.drawText(drawn.text, { x: rightColumnX, y, size: drawn.size, font: regular, color: MUTED })
+    }
     y -= 14
   }
 
@@ -194,7 +217,9 @@ export async function buildInvoice(details: InvoiceDetails): Promise<Uint8Array>
   const cols = {
     item: MARGIN,
     qty: right - 330,
-    rate: right - 230,
+    // Rate needs room for both the charged price and the struck list price
+    // beneath it ("Rs. 2,499.00" at 7.5pt is ~52pt wide).
+    rate: right - 236,
     amount: right - 90,
   }
 
@@ -207,47 +232,86 @@ export async function buildInvoice(details: InvoiceDetails): Promise<Uint8Array>
 
   for (const line of details.lines) {
     const nameLines = wrap(line.name, regular, 9.5, cols.qty - cols.item - 20)
-    nameLines.forEach((text, index) => {
-      page.drawText(text, { x: cols.item + 8, y: y - index * 12, size: 9.5, font: index === 0 ? bold : regular, color: INK })
-    })
     const struck = line.listPricePaise > line.unitPricePaise
-    page.drawText(String(line.quantity), { x: cols.qty, y, size: 9.5, font: regular, color: INK })
-    page.drawText(rupees(line.unitPricePaise), { x: cols.rate, y, size: 9.5, font: regular, color: INK })
-    if (struck) page.drawText(rupees(line.listPricePaise), { x: cols.amount - 66, y, size: 7.5, font: regular, color: MUTED })
-    page.drawText(rupees(line.unitPricePaise * line.quantity), { x: cols.amount, y, size: 9.5, font: bold, color: INK })
+    // The row is as tall as its tallest column: the wrapped description, or the
+    // rate plus the struck list price beneath it.
+    const descriptionHeight = nameLines.length * 12
+    const rateHeight = struck ? 24 : 12
+    const rowHeight = Math.max(descriptionHeight, rateHeight) + 10
+    // Header baseline for this row.
+    const rowTop = y
+    nameLines.forEach((text, index) => {
+      page.drawText(text, { x: cols.item + 8, y: rowTop - index * 12, size: 9.5, font: index === 0 ? bold : regular, color: INK })
+    })
+    page.drawText(String(line.quantity), { x: cols.qty, y: rowTop, size: 9.5, font: regular, color: INK })
+    page.drawText(rupees(line.unitPricePaise), { x: cols.rate, y: rowTop, size: 9.5, font: regular, color: INK })
+    if (struck) {
+      // List price directly beneath the charged rate, inside the Rate column.
+      const struckText = rupees(line.listPricePaise)
+      const struckSize = 8
+      const struckWidth = regular.widthOfTextAtSize(struckText, struckSize)
+      // Drop below the 9.5pt rate line, then strike through the glyph middle
+      // (cap height ≈ 0.7em, so half of that above the baseline).
+      const struckY = rowTop - 11
+      page.drawText(struckText, { x: cols.rate, y: struckY, size: struckSize, font: regular, color: MUTED })
+      page.drawLine({ start: { x: cols.rate, y: struckY + 2.8 }, end: { x: cols.rate + struckWidth, y: struckY + 2.8 }, thickness: 0.5, color: MUTED })
+    }
+    page.drawText(rupees(line.unitPricePaise * line.quantity), { x: cols.amount, y: rowTop, size: 9.5, font: bold, color: INK })
 
-    y -= Math.max(18, nameLines.length * 12 + 6)
-    page.drawLine({ start: { x: MARGIN, y: y + 6 }, end: { x: right, y: y + 6 }, thickness: 0.5, color: LINE })
+    // Advance past the row, then draw the divider in the gap below it.
+    y = rowTop - rowHeight
+    page.drawLine({ start: { x: MARGIN, y: y + 4 }, end: { x: right, y: y + 4 }, thickness: 0.5, color: LINE })
+    y -= 8
   }
 
   // ---- Totals ------------------------------------------------------------
+  // Labels share one left edge; every amount right-aligns to the page edge, so
+  // the figures and the total line up as a column instead of a ragged edge.
+  //
+  // These follow the stored booking model in lib/booking.ts:
+  //   subtotalPaise = sum(list price × qty)   ← the pre-discount figure
+  //   discountPaise = subtotal − net
+  //   totalPaise    = net + collection fee
+  // so the column reads: Subtotal − Discount (+ Home fee) = Total.
+  const totalsLabelX = cols.rate - 40
+  const amountRight = (text: string, font: typeof regular, size: number) => right - font.widthOfTextAtSize(text, size)
+
   const isHome = details.method === 'home' && details.collectionFeePaise > 0
-  if (isHome) {
-    page.drawText('Home collection fee', { x: cols.rate - 40, y, size: 9, font: regular, color: MUTED })
-    page.drawText(rupees(details.collectionFeePaise), { x: cols.amount, y, size: 9.5, font: regular, color: INK })
+  const hasDiscount = details.discountPaise > 0
+  if (hasDiscount || isHome) {
+    page.drawText('Subtotal', { x: totalsLabelX, y, size: 9, font: regular, color: MUTED })
+    const amount = rupees(details.subtotalPaise)
+    page.drawText(amount, { x: amountRight(amount, regular, 9.5), y, size: 9.5, font: regular, color: INK })
     y -= 16
   }
-  const charged = details.subtotalPaise + details.collectionFeePaise
-  if (details.discountPaise > 0) {
-    page.drawText('Discount', { x: cols.rate - 40, y, size: 9, font: regular, color: MUTED })
-    page.drawText(`- ${rupees(details.discountPaise)}`, { x: cols.amount, y, size: 9.5, font: regular, color: INK })
+  if (hasDiscount) {
+    page.drawText('Discount', { x: totalsLabelX, y, size: 9, font: regular, color: MUTED })
+    const amount = `- ${rupees(details.discountPaise)}`
+    page.drawText(amount, { x: amountRight(amount, regular, 9.5), y, size: 9.5, font: regular, color: INK })
+    y -= 16
+  }
+  if (isHome) {
+    page.drawText('Home collection fee', { x: totalsLabelX, y, size: 9, font: regular, color: MUTED })
+    const amount = rupees(details.collectionFeePaise)
+    page.drawText(amount, { x: amountRight(amount, regular, 9.5), y, size: 9.5, font: regular, color: INK })
     y -= 16
   }
 
-  const taxable = Math.max(0, charged - details.discountPaise)
+  const taxable = Math.max(0, details.totalPaise)
   const taxPaise = Math.round(taxable * (details.taxRatePercent / 100))
   if (details.taxRatePercent > 0) {
-    page.drawText(`Tax (${details.taxRatePercent}%)`, { x: cols.rate - 40, y, size: 9, font: regular, color: MUTED })
-    page.drawText(rupees(taxPaise), { x: cols.amount, y, size: 9.5, font: regular, color: INK })
+    page.drawText(`Tax (${details.taxRatePercent}%)`, { x: totalsLabelX, y, size: 9, font: regular, color: MUTED })
+    const taxAmount = rupees(taxPaise)
+    page.drawText(taxAmount, { x: amountRight(taxAmount, regular, 9.5), y, size: 9.5, font: regular, color: INK })
     y -= 16
   }
 
   const payable = Math.max(details.totalPaise, taxable + taxPaise)
   y -= 4
-  page.drawLine({ start: { x: cols.rate - 60, y: y + 10 }, end: { x: right, y: y + 10 }, thickness: 0.8, color: LINE })
-  page.drawText('Total payable', { x: cols.rate - 40, y: y - 8, size: 10.5, font: bold, color: INK })
+  page.drawLine({ start: { x: totalsLabelX, y: y + 10 }, end: { x: right, y: y + 10 }, thickness: 0.8, color: LINE })
+  page.drawText('Total payable', { x: totalsLabelX, y: y - 8, size: 10.5, font: bold, color: INK })
   const totalText = rupees(payable)
-  page.drawText(totalText, { x: right - bold.widthOfTextAtSize(totalText, 15), y: y - 10, size: 15, font: bold, color: NAVY })
+  page.drawText(totalText, { x: amountRight(totalText, bold, 15), y: y - 10, size: 15, font: bold, color: NAVY })
 
   // ---- Footer ------------------------------------------------------------
   const footer = [

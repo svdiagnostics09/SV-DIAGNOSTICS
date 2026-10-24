@@ -111,18 +111,28 @@ export async function updatePartner(id: string, patch: { name?: string; role?: s
 }
 
 export async function deletePartner(id: string) {
+  // Capture the image first — the FK is ON DELETE SET NULL, so it would
+  // otherwise be left orphaned in partner_logos.
+  const rows = await sql<{ logo_id: string | null }>('SELECT logo_id FROM partners WHERE id = $1', [id])
+  const logoId = rows[0]?.logo_id
   await sql('DELETE FROM partners WHERE id = $1', [id])
+  if (logoId) await sql('DELETE FROM partner_logos WHERE id = $1', [logoId])
 }
 
 /** Replaces the image for one partner. The old bytes are removed first. */
 export async function putPartnerLogo(input: { partnerId: string; logoId: string; fileName: string; mimeType: string; bytes: Uint8Array; actorEmail: string }) {
-  await sql('DELETE FROM partner_logos WHERE id = $1', [input.logoId])
+  // Drop the image currently attached to this partner, then insert the new one.
+  // Deleting by the NEW id would be a no-op and would leak the old blob on
+  // every replace.
+  const previous = await sql<{ logo_id: string | null }>('SELECT logo_id FROM partners WHERE id = $1', [input.partnerId])
+  const previousLogoId = previous[0]?.logo_id
   await sql(
     `INSERT INTO partner_logos (id, file_name, mime_type, content, size_bytes, updated_at)
      VALUES ($1, $2, $3, $4, $5, now())`,
     [input.logoId, input.fileName, input.mimeType, Buffer.from(input.bytes), input.bytes.length],
   )
   await sql('UPDATE partners SET logo_id = $2, updated_at = now() WHERE id = $1', [input.partnerId, input.logoId])
+  if (previousLogoId) await sql('DELETE FROM partner_logos WHERE id = $1', [previousLogoId])
 }
 
 export async function getPartnerLogo(id: string) {
