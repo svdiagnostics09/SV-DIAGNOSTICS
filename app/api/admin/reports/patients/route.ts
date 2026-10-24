@@ -7,6 +7,7 @@ import { firstIssue } from '@/lib/validation'
 import { getSettings } from '@/lib/settings'
 import { whatsappConfigured, whatsappRecipient } from '@/lib/notify'
 import { renderWhatsappReportMessage } from '@/lib/whatsapp-report'
+import { invoiceSummary } from '@/lib/invoices'
 import {
   MAX_PDF_BYTES,
   createShareLink,
@@ -165,7 +166,9 @@ export async function POST(request: Request) {
     // Creates a patient-only report link for the manual wa.me flow and renders
     // the message template configured in Business settings.
     if (action === 'link') {
-      const body = z.object({ bookingId: z.string().uuid() }).parse(await request.json().catch(() => null))
+      // includeInvoice: the same WhatsApp message also names the invoice, so the
+      // report and the bill reach the patient in one send.
+      const body = z.object({ bookingId: z.string().uuid(), includeInvoice: z.boolean().optional() }).parse(await request.json().catch(() => null))
       const settings = await getSettings()
       if (!settings.whatsappReportsEnabled) return Response.json({ error: 'WhatsApp report sharing is switched off in Business settings.' }, { status: 409 })
       const booking = await one<{ reference: string; patient_name: string }>('SELECT reference, patient_name FROM bookings WHERE id = $1', [body.bookingId])
@@ -174,6 +177,13 @@ export async function POST(request: Request) {
       if (!report) return Response.json({ error: 'Upload the report PDF first.' }, { status: 409 })
       const share = await createShareLink(report.id, settings.reportLinkDays)
       const reportUrl = absoluteUrl(share.url, request)
+
+      let invoice: { number: string; totalFormatted: string } | null = null
+      if (body.includeInvoice) {
+        const bill = await invoiceSummary(body.bookingId)
+        if (bill) invoice = { number: bill.number, totalFormatted: bill.totalFormatted }
+      }
+
       const message = renderWhatsappReportMessage({
         template: settings.whatsappReportMessage,
         patientName: booking.patient_name,
@@ -181,9 +191,10 @@ export async function POST(request: Request) {
         reportUrl,
         expiresAt: share.expiresAt,
         brandName: settings.brandName,
+        invoice,
       })
-      await audit({ actor: admin, action: 'report.link_created', entity: 'patient_reports', entityId: report.id, detail: { bookingId: body.bookingId, expiresAt: share.expiresAt, reportUrl }, request })
-      return Response.json({ url: reportUrl, reportUrl, message, path: share.url, expiresAt: share.expiresAt })
+      await audit({ actor: admin, action: 'report.link_created', entity: 'patient_reports', entityId: report.id, detail: { bookingId: body.bookingId, expiresAt: share.expiresAt, reportUrl, withInvoice: Boolean(invoice) }, request })
+      return Response.json({ url: reportUrl, reportUrl, message, path: share.url, expiresAt: share.expiresAt, invoice })
     }
 
     // Records that the administrator opened the patient's WhatsApp chat. The

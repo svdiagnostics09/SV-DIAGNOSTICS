@@ -530,3 +530,55 @@ export async function getBookingForConfirmation(reference: string, token: string
     items: items.map((item) => ({ name: item.name_snapshot, quantity: Number(item.quantity), unitPricePaise: Number(item.unit_price_paise) })),
   }
 }
+
+/**
+ * Every booking belonging to one mobile number, newest first.
+ *
+ * This is the "My bookings" lookup: a patient recognises their own number far
+ * more readily than a booking reference. It returns a summary per booking —
+ * enough to list them and open the full timeline on demand.
+ *
+ * Privacy note: a phone number alone is weaker proof than reference + phone, so
+ * the caller rate-limits hard and this returns summaries only (no address, no
+ * report contents).
+ */
+export interface BookingSummary {
+  reference: string
+  status: BookingStatus
+  statusLabel: string
+  paymentStatus: string
+  method: 'home' | 'lab'
+  appointmentDate: string
+  slotLabel: string
+  totalPaise: number
+  createdAt: string
+  itemCount: number
+  hasReport: boolean
+}
+
+export async function listBookingsByPhone(phone: string, limit = 25): Promise<BookingSummary[]> {
+  const rows = await sql<Record<string, unknown>>(
+    `SELECT b.id, b.reference, b.status, b.payment_status, b.method, b.appointment_date,
+            b.slot_label, b.total_paise, b.created_at,
+            (SELECT count(*)::int FROM booking_items i WHERE i.booking_id = b.id) AS item_count,
+            EXISTS (SELECT 1 FROM patient_reports r WHERE r.booking_id = b.id AND r.revoked_at IS NULL) AS has_report
+       FROM bookings b
+      WHERE b.phone = $1
+      ORDER BY b.created_at DESC
+      LIMIT $2`,
+    [phone, limit],
+  )
+  return rows.map((row) => ({
+    reference: String(row.reference),
+    status: row.status as BookingStatus,
+    statusLabel: STATUS_LABELS[row.status as BookingStatus] ?? String(row.status),
+    paymentStatus: String(row.payment_status),
+    method: row.method as 'home' | 'lab',
+    appointmentDate: String(row.appointment_date).slice(0, 10),
+    slotLabel: String(row.slot_label),
+    totalPaise: Number(row.total_paise),
+    createdAt: new Date(row.created_at as string).toISOString(),
+    itemCount: Number(row.item_count),
+    hasReport: Boolean(row.has_report),
+  }))
+}

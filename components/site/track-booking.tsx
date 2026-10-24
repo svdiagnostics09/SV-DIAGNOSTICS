@@ -15,9 +15,9 @@ const TIMELINE: Array<{ key: TrackingResult['status']; label: string }> = [
   { key: 'completed', label: 'Completed' },
 ]
 
-export function TrackBooking({ initialReference, cancellationWindowHours }: { initialReference?: string; cancellationWindowHours: number }) {
+export function TrackBooking({ initialReference, initialPhone, cancellationWindowHours }: { initialReference?: string; initialPhone?: string; cancellationWindowHours: number }) {
   const [reference, setReference] = useState(initialReference ?? '')
-  const [phone, setPhone] = useState('')
+  const [phone, setPhone] = useState(initialPhone ?? '')
   const [state, setState] = useState<'idle' | 'loading' | 'found' | 'error'>('idle')
   const [error, setError] = useState('')
   const [booking, setBooking] = useState<TrackingResult | null>(null)

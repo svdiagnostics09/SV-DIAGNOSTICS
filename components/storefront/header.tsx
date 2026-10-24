@@ -78,6 +78,10 @@ export function StoreHeader({ settings }: { settings: PublicSettings }) {
               <Store size={15} aria-hidden /> Track booking
             </Link>
 
+            <Link href="/my-bookings" className="hidden items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-2 text-[13px] font-medium text-muted transition hover:bg-section hover:text-ink xl:flex">
+              My bookings
+            </Link>
+
             {tel ? (
               <a href={`tel:${tel}`} className="btn btn-outline btn-sm hidden items-center gap-1.5 sm:inline-flex" aria-label={`Call support on ${settings.supportPhone}`}>
                 <Headphones size={14} aria-hidden /> Support
@@ -120,7 +124,7 @@ export function StoreHeader({ settings }: { settings: PublicSettings }) {
           <div className="overflow-y-auto px-4 py-4" style={{ maxHeight: 'calc(100dvh - 4rem)' }}>
             <LocationSelector />
             <nav aria-label="Mobile" className="mt-3 flex flex-col">
-              {[...NAV, { label: 'Track booking', href: '/track' }, { label: 'Health articles', href: '/blog' }, { label: 'About', href: '/about' }, { label: 'Contact', href: '/contact' }].map((item) => (
+              {[...NAV, { label: 'My bookings', href: '/my-bookings' }, { label: 'Track booking', href: '/track' }, { label: 'Health articles', href: '/blog' }, { label: 'About', href: '/about' }, { label: 'Contact', href: '/contact' }].map((item) => (
                 <Link key={item.href} href={item.href} className={`rounded-xl px-3 py-3 text-[15px] font-medium ${isActive(item.href) ? 'bg-mint-50 text-mint-700' : 'text-ink'}`}>
                   {item.label}
                 </Link>

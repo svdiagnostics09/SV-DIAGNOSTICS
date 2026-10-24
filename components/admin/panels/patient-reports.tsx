@@ -310,6 +310,8 @@ function ReportHistory({ bookingId, canSend, onChanged, onToast }: {
   const [busy, setBusy] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
   const [phone, setPhone] = useState('')
+  // Report + invoice in one WhatsApp message (same send path as the report).
+  const [withInvoice, setWithInvoice] = useState(true)
 
   const load = useCallback(async () => {
     const result = await adminFetch<DetailData>(`/api/admin/reports/patients?bookingId=${bookingId}`)
@@ -340,7 +342,7 @@ function ReportHistory({ bookingId, canSend, onChanged, onToast }: {
     const recipient = phone.trim() || bookedPhone
     if (!whatsappChatUrl(recipient, '')) { onToast('Enter a mobile number with country code (e.g. 91…).', 'error'); return }
     setBusy(true)
-    const link = await adminFetch<{ message: string }>('/api/admin/reports/patients?action=link', { method: 'POST', body: { bookingId } })
+    const link = await adminFetch<{ message: string }>('/api/admin/reports/patients?action=link', { method: 'POST', body: { bookingId, includeInvoice: withInvoice } })
     setBusy(false)
     if (!link.ok) { onToast(link.error, 'error'); return }
     const opened = openWhatsappChat(recipient, link.data.message)
@@ -348,7 +350,7 @@ function ReportHistory({ bookingId, canSend, onChanged, onToast }: {
     setBusy(true)
     await adminFetch('/api/admin/reports/patients?action=opened', { method: 'POST', body: { bookingId, phone: recipient } }).catch(() => undefined)
     setBusy(false)
-    onToast('WhatsApp opened with the secure report link. Review the message and press send.')
+    onToast(withInvoice ? 'WhatsApp opened with the report link and invoice details.' : 'WhatsApp opened with the secure report link. Review the message and press send.')
     void load()
     onChanged()
   }
@@ -396,6 +398,10 @@ function ReportHistory({ bookingId, canSend, onChanged, onToast }: {
         {canSend && (
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <input value={phone} onChange={(event) => setPhone(event.target.value.replace(/[^\d+]/g, ''))} placeholder="Different number (optional)" className="input h-9 w-48 py-0 text-[12px]" inputMode="tel" aria-label="Send to a different mobile number" />
+            <label className="flex items-center gap-1.5 text-[11.5px] font-medium text-ink">
+              <input type="checkbox" checked={withInvoice} onChange={(event) => setWithInvoice(event.target.checked)} className="size-3.5 accent-[#1b4f8a]" />
+              Include invoice
+            </label>
             <button type="button" onClick={resend} disabled={busy} className="btn btn-mint btn-sm">{busy ? <Loader2 size={13} className="animate-spin" aria-hidden /> : <Send size={13} aria-hidden />} Share report link</button>
           </div>
         )}

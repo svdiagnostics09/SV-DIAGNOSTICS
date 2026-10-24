@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { LogOut, Menu, RefreshCw, X } from 'lucide-react'
+import { AdminNotifications } from '@/components/admin/notifications-bell'
 import type { AdminUser } from '@/lib/auth'
 import type { LucideIcon } from 'lucide-react'
 
@@ -127,6 +128,7 @@ export function AdminShell({ user, groups, active, title, description, onNavigat
                 <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} aria-hidden /> Refresh
               </button>
               <span className="hidden max-w-[200px] truncate rounded-full bg-page px-3 py-1.5 text-[11.5px] font-medium text-muted md:block" title={user.email}>{user.email}</span>
+              <AdminNotifications />
               <a href="/" target="_blank" rel="noopener" className="btn btn-outline btn-sm">View site</a>
               <button type="button" onClick={logout} className="btn btn-ghost btn-sm" aria-label="Log out"><LogOut size={14} aria-hidden /><span className="hidden sm:inline">Logout</span></button>
             </div>

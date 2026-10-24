@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { UseMyLocation } from '@/components/booking/use-my-location'
 import { useSearchParams } from 'next/navigation'
 import { ArrowLeft, ArrowRight, Check, Clock3, FlaskConical, Home, Loader2, Lock, MapPin, Search as SearchIcon, ShoppingBag, Store, Trash2 } from 'lucide-react'
 import { useCart } from '@/components/cart-provider'
@@ -332,6 +333,15 @@ export function BookingWizard({ config, locations, areas }: { config: BookingCon
                       <input id="pincode" value={pincode} onChange={(event) => setPincode(event.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" autoComplete="postal-code" className="input" aria-invalid={Boolean(errors.pincode)} placeholder="500034" />
                       {errors.pincode && <p className="mt-1 text-[11.5px] text-danger" role="alert">{errors.pincode}</p>}
                       {pincode.length === 6 && area && <p className="mt-1 flex items-center gap-1 text-[11.5px] font-medium text-success"><Check size={12} aria-hidden /> Covered by {area.name}</p>}
+                      <div className="mt-2">
+                        <UseMyLocation
+                          onLocated={(found) => {
+                            if (found.pincode) setPincode(found.pincode)
+                            if (found.addressLine) setAddressLine(found.addressLine)
+                            if (found.area) setAddressArea(found.area)
+                          }}
+                        />
+                      </div>
                     </div>
                     <div className="min-w-0">
                       <label htmlFor="address" className="label">House / building, street</label>

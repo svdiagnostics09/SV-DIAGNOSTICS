@@ -290,6 +290,7 @@ export const FOOTER_COLUMNS = [
   {
     title: 'Patient support',
     links: [
+      { label: 'My bookings', href: '/my-bookings' },
       { label: 'Track a booking', href: '/track' },
       { label: 'Book a test', href: '/tests' },
       { label: 'Frequently asked questions', href: '/faq' },
