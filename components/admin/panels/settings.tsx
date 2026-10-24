@@ -12,6 +12,7 @@ interface SettingsResponse {
     collectionFeePaise: number; bookingHorizonDays: number; slotHoldMinutes: number; payAtLabEnabled: boolean
     payAtHomeEnabled: boolean; cancellationWindowHours: number; consentVersion: string; patientConsentText: string; bookingTermsText: string
     city: string; state: string; logoUrl: string; faviconUrl: string
+    gstin: string; invoiceTaxPercent: number; invoiceNotes: string
     whatsappReportsEnabled: boolean; whatsappReportMessage: string; whatsappTemplateName: string; whatsappTemplateLanguage: string; whatsappTemplateParam: string; reportLinkDays: number
   }
   internal: { bookingHorizonDays: number; slotHoldMinutes: number; whatsappConfigured: boolean }
@@ -62,6 +63,14 @@ export function SettingsPanel({ user, onToast }: { user: AdminUser; onToast: (te
           </div>
           <Field label="City" id="s-city"><input id="s-city" className="input" value={form.city} onChange={(event) => set('city', event.target.value)} /></Field>
           <Field label="State" id="s-state"><input id="s-state" className="input" value={form.state} onChange={(event) => set('state', event.target.value)} /></Field>
+          <Field label="GSTIN" id="s-gstin" hint="Printed on invoices. Leave empty if not registered."><input id="s-gstin" className="input" value={form.gstin} onChange={(event) => set('gstin', event.target.value)} /></Field>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection title="Invoices" description="Each booking can be invoiced as a branded PDF and sent on WhatsApp from the Bookings panel.">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Tax rate (%)" id="s-tax" hint="0 for GST-exempt pathology. Applied to the taxable value on every invoice."><input id="s-tax" type="number" min={0} max={28} step="0.5" className="input" value={form.invoiceTaxPercent} onChange={(event) => set('invoiceTaxPercent', Number(event.target.value) || 0)} /></Field>
+          <Field label="Invoice footer note" id="s-invnote" hint="Optional line printed at the foot of each invoice."><input id="s-invnote" className="input" value={form.invoiceNotes} onChange={(event) => set('invoiceNotes', event.target.value)} /></Field>
         </div>
       </SettingsSection>
 

@@ -491,6 +491,8 @@
    * the loop seamless. Pause on hover/focus so names stay readable.
    */
   .partners-marquee {
+    overflow-x: auto;
+    overflow-y: hidden;
     mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
     -webkit-mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
   }
@@ -501,7 +503,8 @@
   }
   .partners-track[data-direction='right'] { animation-direction: reverse; }
   .partners-marquee:hover .partners-track,
-  .partners-marquee:focus-within .partners-track { animation-play-state: paused; }
+  .partners-marquee:focus-within .partners-track,
+  .partners-marquee[data-paused='true'] .partners-track { animation-play-state: paused; }
 }
 
 @keyframes shimmer {
@@ -564,6 +567,9 @@
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
+  /* A still, swipeable row rather than an empty one. */
+  .partners-track { width: auto; animation: none !important; }
+  .partners-marquee { overflow-x: auto; }
 }
 
 @media print {

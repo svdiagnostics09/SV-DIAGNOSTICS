@@ -7,6 +7,7 @@ import {
   Contact,
   FileDown,
   FileText,
+  Handshake,
   Inbox,
   Image as ImageIcon,
   LayoutDashboard,
@@ -37,6 +38,7 @@ import { ReportsPanel, AuditPanel } from '@/components/admin/panels/reports'
 import { SettingsPanel } from '@/components/admin/panels/settings'
 import { CustomersPanel } from '@/components/admin/panels/customers'
 import { PatientReportsPanel } from '@/components/admin/panels/patient-reports'
+import { PartnersPanel } from '@/components/admin/panels/partners'
 
 const TITLES: Record<string, { title: string; description: string }> = {
   dashboard: { title: 'Dashboard', description: 'Live figures from the laboratory database' },
@@ -47,6 +49,7 @@ const TITLES: Record<string, { title: string; description: string }> = {
   banners: { title: 'Banners', description: 'Homepage and catalogue banners' },
   faqs: { title: 'FAQs', description: 'Questions shown on the website' },
   blog: { title: 'Blog Posts', description: 'Write and publish health articles' },
+  partners: { title: 'Partners', description: 'Logos in the scrolling partners band on the homepage' },
   bookings: { title: 'Bookings', description: 'Search, confirm and update patient bookings' },
   enquiries: { title: 'Enquiries', description: 'Messages submitted from the contact form' },
   customers: { title: 'Customers & Patients', description: 'Restricted view of patient booking history' },
@@ -78,6 +81,7 @@ export function AdminConsole({ user, dashboard, bookings, brand }: { user: Admin
         { key: 'banners', label: 'Banners', icon: ImageIcon },
         { key: 'faqs', label: 'FAQs', icon: HelpCircle },
         { key: 'blog', label: 'Blog Posts', icon: Newspaper },
+        { key: 'partners', label: 'Partners', icon: Handshake },
       ]
     },
     {
@@ -143,6 +147,7 @@ export function AdminConsole({ user, dashboard, bookings, brand }: { user: Admin
           {active === 'banners' && <ContentPanel kind="banners" onToast={toasts.push} />}
           {active === 'faqs' && <ContentPanel kind="faqs" onToast={toasts.push} />}
           {active === 'blog' && <ContentPanel kind="blog" onToast={toasts.push} />}
+          {active === 'partners' && <PartnersPanel onToast={toasts.push} />}
           {active === 'bookings' && <BookingsPanel initial={bookings} onToast={toasts.push} />}
           {active === 'enquiries' && <EnquiriesPanel onToast={toasts.push} />}
           {active === 'customers' && <CustomersPanel />}

@@ -7,6 +7,9 @@
   "functions": {
     "app/api/admin/reports/patients/route.ts": {
       "maxDuration": 60
+    },
+    "app/api/admin/invoices/route.ts": {
+      "maxDuration": 60
     }
   }
 }

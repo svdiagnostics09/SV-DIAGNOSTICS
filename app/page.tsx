@@ -2,6 +2,7 @@ import { headers } from 'next/headers'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 import { listPackages, listTests } from '@/lib/catalogue'
+import { listPublicPartners } from '@/lib/partners'
 import { siteShell } from '@/lib/page-data'
 import { StorefrontShell } from '@/components/storefront/storefront-shell'
 import { HeroBanner } from '@/components/storefront/hero-banner'
@@ -35,11 +36,14 @@ function SectionHeader({ id, title, description, href, linkLabel }: { id: string
 }
 
 export default async function HomePage() {
-  const [{ settings }, testResult, packages, requestHeaders] = await Promise.all([
+  const [{ settings }, testResult, packages, requestHeaders, partners] = await Promise.all([
     siteShell(),
     listTests({ pageSize: 24 }),
     listPackages(),
     headers(),
+    // A missing partners table (migration not run yet) must not break the home
+    // page — the section simply does not render.
+    listPublicPartners().catch(() => []),
   ])
 
   const host = requestHeaders.get('host') ?? 'localhost:3000'
@@ -127,7 +131,7 @@ export default async function HomePage() {
       <HealthCategoriesSection />
 
       {/* §12 — Partners marquee */}
-      <PartnersMarquee />
+      <PartnersMarquee partners={partners} />
 
       {/* §13 */}
       <Testimonials />

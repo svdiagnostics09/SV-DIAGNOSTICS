@@ -56,11 +56,17 @@ export const DEFAULT_SETTINGS = {
   whatsappTemplateLanguage: 'en',
   /** Optional first parameter for a custom template; {name} → patient name. */
   whatsappTemplateParam: '{name}',
+  /** Printed on invoices. Leave empty to hide the line. */
+  gstin: '',
+  /** Invoice tax rate. Pathology is commonly 0; set 5 or 18 if you charge GST. */
+  invoiceTaxPercent: 0,
+  /** Optional line at the foot of every invoice. */
+  invoiceNotes: '',
 }
 
 type SettingsShape = typeof DEFAULT_SETTINGS
 
-export type BusinessSettings = { [K in keyof SettingsShape]: K extends 'announcementEnabled' | 'collectionEnabled' | 'payAtLabEnabled' | 'payAtHomeEnabled' | 'whatsappReportsEnabled' ? boolean : K extends 'collectionFeePaise' | 'bookingHorizonDays' | 'slotHoldMinutes' | 'cancellationWindowHours' | 'reportLinkDays' ? number : string }
+export type BusinessSettings = { [K in keyof SettingsShape]: K extends 'announcementEnabled' | 'collectionEnabled' | 'payAtLabEnabled' | 'payAtHomeEnabled' | 'whatsappReportsEnabled' ? boolean : K extends 'collectionFeePaise' | 'bookingHorizonDays' | 'slotHoldMinutes' | 'cancellationWindowHours' | 'reportLinkDays' | 'invoiceTaxPercent' ? number : string }
 
 export const settingsSchema = z.object({
   brandName: z.string().trim().min(2).max(80),
@@ -94,6 +100,9 @@ export const settingsSchema = z.object({
   whatsappTemplateName: z.string().trim().regex(/^[a-z0-9_]{0,256}$/, 'Use lowercase letters, numbers and underscores (the name shown in Meta).'),
   whatsappTemplateLanguage: z.string().trim().regex(/^[a-z]{2}(_[A-Z]{2})?$/, 'Use a language code such as en or en_US.'),
   whatsappTemplateParam: z.string().trim().max(200),
+  gstin: z.string().trim().max(20),
+  invoiceTaxPercent: z.number().min(0).max(28),
+  invoiceNotes: z.string().trim().max(600),
 })
 
 /**
@@ -172,6 +181,9 @@ export function publicSettings(settings: BusinessSettings) {
     timezone: settings.timezone,
     logoUrl: settings.logoUrl ?? '',
     faviconUrl: settings.faviconUrl ?? '',
+    gstin: settings.gstin ?? '',
+    invoiceTaxPercent: settings.invoiceTaxPercent ?? 0,
+    invoiceNotes: settings.invoiceNotes ?? '',
   }
 }
 

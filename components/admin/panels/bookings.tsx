@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Loader2, Mail, MessageSquare, RefreshCw, Search, X, XCircle } from 'lucide-react'
+import { CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, FileText, Loader2, Mail, MessageSquare, RefreshCw, Search, Send, X, XCircle } from 'lucide-react'
 import { adminFetch, formatDate, useAdminResource } from '@/components/admin/fetch'
 import { formatINR, formatIndiaTime } from '@/lib/format'
 import { EmptyState } from '@/components/ui'
@@ -200,8 +200,7 @@ function BookingDrawer({ id, onClose, onChanged, onToast }: { id: string; onClos
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-navy/40" role="dialog" aria-modal="true" aria-labelledby="booking-drawer-title">
-      <div className="absolute inset-0" onClick={onClose} aria-hidden />
+    <div className="fixed inset-0 z-50 flex justify-end bg-navy/40" role="dialog" aria-modal="true" aria-labelledby="booking-drawer-title">      <div className="absolute inset-0" onClick={onClose} aria-hidden />
       <aside className="relative flex h-full w-full max-w-xl flex-col overflow-y-auto bg-white shadow-2xl">
         <header className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-line bg-white px-5 py-4">
           <div>
@@ -264,6 +263,8 @@ function BookingDrawer({ id, onClose, onChanged, onToast }: { id: string; onClos
               {detail.booking.status === 'cancelled' && detail.booking.cancellationReason && <p className="mt-2 text-[12px] text-muted">Reason: {detail.booking.cancellationReason}</p>}
             </section>
 
+            <InvoiceSection bookingId={detail.booking.id} reference={detail.booking.reference} onToast={onToast} />
+
             <section>
               <h3 className="text-[12px] font-bold uppercase tracking-wide text-muted">Internal notes (staff only)</h3>
               <textarea value={note} onChange={(event) => setNote(event.target.value)} rows={3} className="input mt-1.5" placeholder="Visible only to administrators" />
@@ -299,5 +300,62 @@ function BookingDrawer({ id, onClose, onChanged, onToast }: { id: string; onClos
         )}
       </aside>
     </div>
+  )
+}
+
+/**
+ * Invoice actions for one booking: open the branded PDF, send it to the
+ * patient on WhatsApp (Cloud API), or open a pre-filled chat to attach it by
+ * hand when the API is not configured.
+ */
+function InvoiceSection({ bookingId, reference, onToast }: {
+  bookingId: string
+  reference: string
+  onToast: (text: string, tone?: 'success' | 'error') => void
+}) {
+  const [busy, setBusy] = useState<'download' | 'send' | 'link' | null>(null)
+
+  const download = () => {
+    // A plain navigation keeps the browser's own download handling.
+    window.open(`/api/admin/invoices?bookingId=${bookingId}`, '_blank', 'noopener')
+    onToast(`Opening invoice ${reference}.`)
+  }
+
+  const send = async () => {
+    setBusy('send')
+    const result = await adminFetch<{ detail: string }>('/api/admin/invoices?action=send', { method: 'POST', body: { bookingId } })
+    setBusy(null)
+    if (!result.ok) { onToast(result.error, 'error'); return }
+    onToast(result.data.detail || `Invoice sent to the patient on WhatsApp.`)
+  }
+
+  const openChat = async () => {
+    setBusy('link')
+    const result = await adminFetch<{ waUrl: string; fileName: string }>('/api/admin/invoices?action=link', { method: 'POST', body: { bookingId } })
+    setBusy(null)
+    if (!result.ok) { onToast(result.error, 'error'); return }
+    window.open(result.data.waUrl, '_blank', 'noopener')
+    onToast(`WhatsApp chat opened. Attach ${result.data.fileName} — download it first.`)
+  }
+
+  return (
+    <section>
+      <h3 className="text-[12px] font-bold uppercase tracking-wide text-muted">Invoice</h3>
+      <div className="mt-1.5 flex-wrap gap-1.5">
+        <button type="button" onClick={download} disabled={busy !== null} className="btn btn-outline btn-sm">
+          {busy === 'download' ? <Loader2 size={13} className="animate-spin" aria-hidden /> : <FileText size={13} aria-hidden />} Open PDF
+        </button>
+        <button type="button" onClick={send} disabled={busy !== null} className="btn btn-primary btn-sm">
+          {busy === 'send' ? <Loader2 size={13} className="animate-spin" aria-hidden /> : <Send size={13} aria-hidden />} Send on WhatsApp
+        </button>
+        <button type="button" onClick={openChat} disabled={busy !== null} className="btn btn-ghost btn-sm">
+          {busy === 'link' ? <Loader2 size={13} className="animate-spin" aria-hidden /> : <MessageSquare size={13} aria-hidden />} Open chat
+        </button>
+      </div>
+      <p className="mt-1.5 text-[11px] leading-4 text-muted">
+        The invoice is generated from this booking, with the uploaded logo. “Send on WhatsApp” needs WHATSAPP_TOKEN and
+        WHATSAPP_PHONE_NUMBER_ID; otherwise use “Open chat” and attach the downloaded PDF.
+      </p>
+    </section>
   )
 }
