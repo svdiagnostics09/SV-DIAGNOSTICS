@@ -180,6 +180,35 @@ export const TESTIMONIALS: Testimonial[] = [
   { id: 't6', name: 'Arjun T.', city: 'Hyderabad', rating: 5, quote: 'Booked a family package for three of us. All collections in one visit and reports delivered together.' },
 ]
 
+/* Partners ---------------------------------------------------------------
+ * HOW TO ADD A PARTNER
+ * 1. Drop the logo/photo into `public/partners/` (e.g.
+ *    public/partners/apollo-hospitals.png). Square images look best.
+ * 2. Add an entry below with `name` and `logo` = '/partners/<file-name>'.
+ *    Leave `logo` empty to show the partner's initials instead.
+ * `href` is optional — set it to link the card somewhere.
+ */
+export interface Partner {
+  id: string
+  name: string
+  /** Short line under the name, e.g. 'Hospital partner'. */
+  role?: string
+  /** Path under /public, or '' for an initials-only tile. */
+  logo: string
+  href?: string
+}
+
+export const PARTNERS: Partner[] = [
+  { id: 'p1', name: 'Apollo Hospitals', role: 'Hospital partner', logo: '' },
+  { id: 'p2', name: 'Rainbow Children’s', role: 'Paediatrics', logo: '' },
+  { id: 'p3', name: 'Yashoda Hospitals', role: 'Multi-specialty', logo: '' },
+  { id: 'p4', name: 'AIG Hospitals', role: 'Gastroenterology', logo: '' },
+  { id: 'p5', name: 'Medicover', role: 'Diagnostics', logo: '' },
+  { id: 'p6', name: 'Continental Hospitals', role: 'Multi-specialty', logo: '' },
+  { id: 'p7', name: 'Star Health', role: 'Insurance', logo: '' },
+  { id: 'p8', name: 'Care Hospitals', role: 'Cardiology', logo: '' },
+]
+
 /* FAQ (§13) ------------------------------------------------------------ */
 
 export interface FaqItem {

@@ -12,6 +12,7 @@ import { MostBookedSection } from '@/components/storefront/most-booked-section'
 import { BrandExperience } from '@/components/storefront/brand-experience'
 import { FeaturedTestBanner } from '@/components/storefront/featured-test-banner'
 import { HealthCategoriesSection } from '@/components/storefront/health-categories'
+import { PartnersMarquee } from '@/components/storefront/partners-marquee'
 import { Testimonials } from '@/components/storefront/testimonials'
 import { SeoContent } from '@/components/storefront/seo-content'
 import { fromPackage, fromTest, type StoreProduct } from '@/lib/storefront/product'
@@ -125,10 +126,13 @@ export default async function HomePage() {
       {/* §11 */}
       <HealthCategoriesSection />
 
-      {/* §12 */}
-      <Testimonials />
+      {/* §12 — Partners marquee */}
+      <PartnersMarquee />
 
       {/* §13 */}
+      <Testimonials />
+
+      {/* §14 */}
       <SeoContent cityName={settings.city} />
     </StorefrontShell>
   )

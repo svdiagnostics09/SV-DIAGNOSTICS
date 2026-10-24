@@ -42,9 +42,9 @@ export function FeaturedTestBanner({ products }: { products: StoreProduct[] }) {
           <FeaturedCard key={`${current.kind}-${current.id}`} product={current} off={off} />
 
           <div className="relative flex flex-col justify-center overflow-hidden rounded-card bg-white p-6 shadow-card sm:p-9">
-            <div aria-hidden className="pointer-events-none absolute -right-20 -top-20 size-56 rounded-full bg-orange-50" />
+            <div aria-hidden className="pointer-events-none absolute -right-20 -top-20 size-56 rounded-full bg-mint-50" />
             <div className="relative">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-3 py-1 text-[11.5px] font-semibold text-orange-600">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-mint-50 px-3 py-1 text-[11.5px] font-semibold text-green">
                 <FlaskConical size={12} aria-hidden /> {current.categoryName}
               </span>
               <h3 className="mt-3 text-[1.55rem] font-bold leading-tight tracking-[-0.02em] text-ink sm:text-[2rem]">

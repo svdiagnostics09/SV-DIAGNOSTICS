@@ -54,7 +54,7 @@ export function ProductDetailsModal() {
             </dl>
 
             {product.preparation && (
-              <p className="mt-3 flex items-start gap-2 rounded-lg bg-orange-50 px-3 py-2 text-[12px] leading-5 text-[#8a4b00]">
+              <p className="mt-3 flex items-start gap-2 rounded-lg bg-mint-50 px-3 py-2 text-[12px] leading-5 text-[#8a4b00]">
                 <Info size={14} className="mt-0.5 shrink-0" aria-hidden /> {product.preparation}
               </p>
             )}

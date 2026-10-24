@@ -17,20 +17,20 @@ export function HeroBanner({ startingPricePaise = STARTING_PAISE }: { startingPr
     <section className="container-x pt-5 sm:pt-7" aria-labelledby="hero-heading">
       <div className="hero-premium soft-grid relative overflow-hidden rounded-[24px] bg-hero-peach sm:rounded-[32px]">
         {/* Decorative circles behind the product shot */}
-        <div aria-hidden className="motion-float pointer-events-none absolute -right-16 -top-24 size-72 rounded-full bg-orange/15 sm:size-96" />
-        <div aria-hidden className="motion-float pointer-events-none absolute -bottom-24 right-24 size-52 rounded-full bg-orange/10 sm:size-64" />
-        <div aria-hidden className="pointer-events-none absolute right-6 top-8 hidden size-24 rounded-full border border-orange/25 lg:block" />
+        <div aria-hidden className="motion-float pointer-events-none absolute -right-16 -top-24 size-72 rounded-full bg-mint/20 sm:size-96" />
+        <div aria-hidden className="motion-float pointer-events-none absolute -bottom-24 right-24 size-52 rounded-full bg-forest/10 sm:size-64" />
+        <div aria-hidden className="pointer-events-none absolute right-6 top-8 hidden size-24 rounded-full border border-forest/15 lg:block" />
 
         <div className="relative grid items-center gap-6 px-6 py-8 sm:px-10 sm:py-10 lg:grid-cols-[1.05fr_.95fr] lg:gap-4 lg:px-14 lg:py-12">
           <div className="max-w-xl">
-            <span className="motion-rise inline-flex items-center gap-1.5 rounded-full border border-white/80 bg-white/75 px-3 py-1 text-[11.5px] font-semibold text-mint-700 shadow-card">
+            <span className="motion-rise inline-flex items-center gap-1.5 rounded-full border border-white/80 bg-white/75 px-3 py-1 text-[11.5px] font-semibold text-green shadow-card">
               <Sparkles size={12} aria-hidden /> Trusted diagnostic care in {city.name}
             </span>
-            <h1 id="hero-heading" className="motion-rise motion-delay-1 mt-3 text-[2.15rem] font-bold leading-[1.08] tracking-[-0.035em] text-forest sm:text-[2.85rem] lg:text-[3.25rem]">
-              Full Body Checkups
+            <h1 id="hero-heading" className="text-reveal mt-3 text-[2.15rem] font-bold leading-[1.08] tracking-[-0.035em] text-forest sm:text-[2.85rem] lg:text-[3.25rem]">
+              <span>Full</span> <span>Body</span> <span className="text-sweep">Checkups</span>
             </h1>
-            <p className="motion-rise motion-delay-2 mt-3 max-w-md text-[14.5px] leading-6 text-ink/75 sm:text-[15.5px]">
-              Discover how your everyday habits impact your health.
+            <p className="text-reveal mt-3 max-w-md text-[14.5px] leading-6 text-ink/75 sm:text-[15.5px]" style={{ '--reveal-delay': 1 } as React.CSSProperties}>
+              <span>Discover</span> <span>how</span> <span>your</span> <span>everyday</span> <span>habits</span> <span>impact</span> <span>your</span> <span>health.</span>
             </p>
 
             <div className="motion-rise motion-delay-2 mt-5 flex flex-wrap items-end gap-x-3 gap-y-1">

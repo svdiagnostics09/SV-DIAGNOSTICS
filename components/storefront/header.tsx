@@ -91,7 +91,7 @@ export function StoreHeader({ settings }: { settings: PublicSettings }) {
             <button
               type="button"
               onClick={openCart}
-              className="relative grid size-10 place-items-center rounded-full border border-line bg-white/80 text-forest shadow-[0_4px_12px_-10px_rgba(14,76,69,0.6)] transition hover:-translate-y-0.5 hover:border-green hover:text-green"
+              className="relative grid size-10 place-items-center rounded-full border border-line bg-white/80 text-forest shadow-[0_4px_12px_-10px_rgba(11,37,69,0.6)] transition hover:-translate-y-0.5 hover:border-green hover:text-green"
               aria-label={`Open cart${cart.count ? `, ${cart.count} item${cart.count === 1 ? '' : 's'}` : ', empty'}`}
             >
               <ShoppingBag size={17} aria-hidden />
